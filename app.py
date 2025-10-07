@@ -107,6 +107,150 @@ def calculate_contrast_index(kVp):
     contrast = 100 * np.exp(-0.01 * (kVp - 60))
     return max(10, min(100, contrast))
 
+# ---------- Utilities for Image Formation (Tab 2) ----------
+
+def photoelectric_cross_section(energy_keV, Z):
+    """
+    Photoelectric effect cross-section (simplified)
+    Strongly dependent on Z^3 and E^-3
+    """
+    # Simplified model
+    if energy_keV < 10:
+        energy_keV = 10  # Avoid division by zero
+    sigma = (Z**3.8) / (energy_keV**3.2)
+    return sigma
+
+def compton_cross_section(energy_keV):
+    """
+    Compton scattering cross-section (Klein-Nishina formula, simplified)
+    Nearly independent of Z, decreases with energy
+    """
+    # Simplified Klein-Nishina
+    E = energy_keV / 511  # Normalize to electron rest mass
+    sigma = 1 / (1 + 2*E)
+    return sigma
+
+def coherent_scattering_cross_section(energy_keV, Z):
+    """
+    Coherent (Rayleigh) scattering - minor contribution
+    """
+    sigma = (Z**2) / (energy_keV**2) * 0.1  # Small contribution
+    return sigma
+
+def total_attenuation_coefficient(energy_keV, Z, density=1.0):
+    """
+    Total linear attenuation coefficient μ
+    Sum of all interactions
+    """
+    photo = photoelectric_cross_section(energy_keV, Z)
+    compton = compton_cross_section(energy_keV)
+    coherent = coherent_scattering_cross_section(energy_keV, Z)
+    
+    # Normalize and scale by density
+    mu = (photo + compton + coherent) * density * 0.001
+    return mu
+
+def calculate_transmission(thickness_cm, mu):
+    """
+    Beer-Lambert law: I = I0 * exp(-μ * x)
+    """
+    transmission = np.exp(-mu * thickness_cm)
+    return transmission
+
+def calculate_contrast(I1, I2):
+    """
+    Contrast between two regions
+    """
+    if I1 + I2 == 0:
+        return 0
+    contrast = abs(I1 - I2) / (I1 + I2)
+    return contrast
+
+# Tissue properties database
+TISSUES = {
+    "Aire": {"Z_eff": 7.6, "density": 0.001, "color": "lightblue"},
+    "Pulmón": {"Z_eff": 7.5, "density": 0.3, "color": "lightyellow"},
+    "Tejido blando": {"Z_eff": 7.4, "density": 1.0, "color": "pink"},
+    "Músculo": {"Z_eff": 7.5, "density": 1.05, "color": "salmon"},
+    "Grasa": {"Z_eff": 6.3, "density": 0.95, "color": "yellow"},
+    "Hueso cortical": {"Z_eff": 13.8, "density": 1.92, "color": "white"},
+    "Hueso trabecular": {"Z_eff": 12.3, "density": 1.18, "color": "lightgray"},
+    "Contraste yodado": {"Z_eff": 50, "density": 1.5, "color": "purple"},
+    "Metal (implante)": {"Z_eff": 26, "density": 7.8, "color": "silver"},
+    "Agua": {"Z_eff": 7.4, "density": 1.0, "color": "lightblue"}
+}
+
+def create_phantom_layer(tissue_type, thickness_cm):
+    """
+    Create a phantom layer with tissue properties
+    """
+    tissue = TISSUES[tissue_type]
+    return {
+        "type": tissue_type,
+        "thickness": thickness_cm,
+        "Z_eff": tissue["Z_eff"],
+        "density": tissue["density"],
+        "color": tissue["color"]
+    }
+
+def simulate_photon_path(layers, energy_keV, num_photons=1000):
+    """
+    Monte Carlo simulation of photon paths through layers
+    Returns: transmitted, absorbed, scattered counts
+    """
+    transmitted = 0
+    absorbed = 0
+    scattered = 0
+    
+    for _ in range(num_photons):
+        current_energy = energy_keV
+        photon_alive = True
+        
+        for layer in layers:
+            if not photon_alive:
+                break
+            
+            mu = total_attenuation_coefficient(current_energy, layer["Z_eff"], layer["density"])
+            
+            # Probability of interaction in this layer
+            prob_interaction = 1 - np.exp(-mu * layer["thickness"])
+            
+            if np.random.random() < prob_interaction:
+                # Interaction occurred - determine type
+                photo_prob = photoelectric_cross_section(current_energy, layer["Z_eff"])
+                compton_prob = compton_cross_section(current_energy)
+                total_prob = photo_prob + compton_prob
+                
+                if np.random.random() < (photo_prob / total_prob):
+                    # Photoelectric - photon absorbed
+                    absorbed += 1
+                    photon_alive = False
+                else:
+                    # Compton - photon scattered
+                    scattered += 1
+                    # Reduce energy (simplified)
+                    current_energy *= 0.7
+                    if current_energy < 20:
+                        photon_alive = False
+        
+        if photon_alive:
+            transmitted += 1
+    
+    return transmitted, absorbed, scattered
+
+def calculate_grid_transmission(grid_ratio, grid_frequency, is_scatter=False):
+    """
+    Calculate transmission through anti-scatter grid
+    """
+    if is_scatter:
+        # Scatter is blocked more effectively
+        transmission = 1 / (1 + grid_ratio * 0.8)
+    else:
+        # Primary beam is partially blocked by septa
+        transmission = 1 / (1 + 0.1 * grid_ratio / 10)
+    
+    return transmission
+
 # ---------- Page setup ----------
 st.set_page_config(
     page_title="Física de Imagen Radiológica", 
