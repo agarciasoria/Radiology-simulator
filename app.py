@@ -2126,23 +2126,2366 @@ Fecha: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
     """, unsafe_allow_html=True)
 
 # ============================================
-# TAB 2: FORMACIÓN DE IMAGEN (to be completed)
+# TAB 2: FORMACIÓN DE IMAGEN
 # ============================================
 with tabs[1]:
     st.header("🎯 Formación de Imagen Radiográfica")
+    st.markdown("""
+    Descubre cómo los rayos X interactúan con los tejidos del paciente para crear la imagen radiográfica.
+    Experimenta con diferentes tejidos, energías y configuraciones.
+    """)
+    
+    st.markdown("---")
+    
+    # Section selector
+    section = st.radio(
+        "Selecciona el concepto a explorar:",
+        ["📊 Interacciones RX-Materia", "🔬 Constructor de Phantom", "🎯 Rejillas Anti-Dispersión", "📈 Contraste y Calidad"],
+        horizontal=False
+    )
+    
+    # ============================================
+    # SECTION 1: X-RAY INTERACTIONS
+    # ============================================
+    if section == "📊 Interacciones RX-Materia":
+        st.subheader("📊 Interacciones de Rayos X con la Materia")
+        
+        st.markdown("""
+        Los rayos X pueden interactuar con la materia de tres formas principales. 
+        La **probabilidad de cada interacción** depende de la energía del fotón y del material.
+        """)
+        
+        # Controls
+        interact_col1, interact_col2 = st.columns(2)
+        
+        with interact_col1:
+            st.markdown("##### Parámetros del Haz")
+            energy_interact = st.slider("Energía del fotón (keV)", 20, 150, 60, 1)
+            
+        with interact_col2:
+            st.markdown("##### Tipo de Tejido")
+            tissue_interact = st.selectbox(
+                "Selecciona tejido",
+                list(TISSUES.keys()),
+                index=2  # Tejido blando
+            )
+        
+        tissue_props = TISSUES[tissue_interact]
+        Z_eff = tissue_props["Z_eff"]
+        density = tissue_props["density"]
+        
+        # Calculate cross sections
+        energies_range = np.linspace(20, 150, 200)
+        photo_values = [photoelectric_cross_section(E, Z_eff) for E in energies_range]
+        compton_values = [compton_cross_section(E) for E in energies_range]
+        coherent_values = [coherent_scattering_cross_section(E, Z_eff) for E in energies_range]
+        
+        # Normalize for visualization
+        max_val = max(max(photo_values), max(compton_values), max(coherent_values))
+        photo_norm = np.array(photo_values) / max_val * 100
+        compton_norm = np.array(compton_values) / max_val * 100
+        coherent_norm = np.array(coherent_values) / max_val * 100
+        total_interaction = photo_norm + compton_norm + coherent_norm
+        
+        # Plot interactions
+        fig_interactions = go.Figure()
+        
+        fig_interactions.add_trace(go.Scatter(
+            x=energies_range,
+            y=photo_norm,
+            mode='lines',
+            name='Efecto Fotoeléctrico',
+            line=dict(color='red', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(255, 0, 0, 0.2)'
+        ))
+        
+        fig_interactions.add_trace(go.Scatter(
+            x=energies_range,
+            y=compton_norm,
+            mode='lines',
+            name='Dispersión Compton',
+            line=dict(color='blue', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(0, 0, 255, 0.2)'
+        ))
+        
+        fig_interactions.add_trace(go.Scatter(
+            x=energies_range,
+            y=coherent_norm,
+            mode='lines',
+            name='Dispersión Coherente',
+            line=dict(color='green', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(0, 255, 0, 0.2)'
+        ))
+        
+        # Mark current energy
+        current_photo = photoelectric_cross_section(energy_interact, Z_eff) / max_val * 100
+        current_compton = compton_cross_section(energy_interact) / max_val * 100
+        current_coherent = coherent_scattering_cross_section(energy_interact, Z_eff) / max_val * 100
+        
+        fig_interactions.add_vline(
+            x=energy_interact,
+            line_dash="dash",
+            line_color="orange",
+            annotation_text=f"Energía actual: {energy_interact} keV",
+            annotation_position="top"
+        )
+        
+        fig_interactions.update_layout(
+            title=f"Probabilidad Relativa de Interacciones en {tissue_interact}",
+            xaxis_title="Energía del Fotón (keV)",
+            yaxis_title="Probabilidad Relativa (%)",
+            hovermode='x unified',
+            height=500,
+            showlegend=True,
+            legend=dict(x=0.7, y=0.95)
+        )
+        
+        st.plotly_chart(fig_interactions, use_container_width=True)
+        
+        # Show percentages at current energy
+        total_current = current_photo + current_compton + current_coherent
+        
+        st.markdown("### 📊 A la Energía Actual")
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+        
+        with metric_col1:
+            photo_percent = (current_photo / total_current * 100) if total_current > 0 else 0
+            st.metric(
+                "Efecto Fotoeléctrico",
+                f"{photo_percent:.1f}%",
+                help="Absorción completa del fotón"
+            )
+            
+        with metric_col2:
+            compton_percent = (current_compton / total_current * 100) if total_current > 0 else 0
+            st.metric(
+                "Dispersión Compton",
+                f"{compton_percent:.1f}%",
+                help="Dispersión inelástica, reduce energía"
+            )
+            
+        with metric_col3:
+            coherent_percent = (current_coherent / total_current * 100) if total_current > 0 else 0
+            st.metric(
+                "Dispersión Coherente",
+                f"{coherent_percent:.1f}%",
+                help="Dispersión elástica, sin pérdida energía"
+            )
+        
+        # Tissue properties
+        st.markdown("### 🧬 Propiedades del Tejido Seleccionado")
+        prop_col1, prop_col2 = st.columns(2)
+        
+        with prop_col1:
+            st.info(f"""
+            **{tissue_interact}**
+            
+            - **Z efectivo**: {Z_eff}
+            - **Densidad**: {density} g/cm³
+            - **Coeficiente atenuación** (a {energy_interact} keV): {total_attenuation_coefficient(energy_interact, Z_eff, density):.3f} cm⁻¹
+            """)
+            
+        with prop_col2:
+            # Visual representation of interactions
+            st.markdown("**Interacción Dominante:**")
+            if photo_percent > compton_percent:
+                st.error(f"🔴 **Fotoeléctrico** ({photo_percent:.0f}%)")
+                st.caption("Absorción completa → Contribuye al contraste")
+            else:
+                st.info(f"🔵 **Compton** ({compton_percent:.0f}%)")
+                st.caption("Dispersión → Reduce contraste, aumenta dosis")
+        
+        # Explanations
+        st.markdown("---")
+        
+        expl_col1, expl_col2, expl_col3 = st.columns(3)
+        
+        with expl_col1:
+            st.markdown("""
+            #### 🔴 Efecto Fotoeléctrico
+            
+            **Proceso:**
+            1. Fotón impacta electrón orbital
+            2. Transfiere TODA su energía
+            3. Electrón es expulsado
+            4. Fotón desaparece (absorbido)
+            
+            **Dependencia:**
+            - ∝ Z³ (fuerte dependencia del material)
+            - ∝ 1/E³ (dominante a bajas energías)
+            
+            **Importancia:**
+            - ✅ Genera CONTRASTE
+            - ✅ Útil para imagen
+            - ⚠️ Aumenta dosis
+            """)
+            
+        with expl_col2:
+            st.markdown("""
+            #### 🔵 Dispersión Compton
+            
+            **Proceso:**
+            1. Fotón choca con electrón libre
+            2. Transfiere PARTE de su energía
+            3. Fotón se desvía (dispersa)
+            4. Continúa con menor energía
+            
+            **Dependencia:**
+            - Casi independiente de Z
+            - Disminuye con energía
+            - Dominante a energías medias (60-100 keV)
+            
+            **Importancia:**
+            - ❌ Reduce CONTRASTE (niebla)
+            - ❌ Dosis al personal
+            - Requiere rejilla anti-dispersión
+            """)
+            
+        with expl_col3:
+            st.markdown("""
+            #### 🟢 Dispersión Coherente (Rayleigh)
+            
+            **Proceso:**
+            1. Fotón interactúa con átomo completo
+            2. NO hay transferencia energía
+            3. Solo cambia dirección
+            4. Mantiene misma energía
+            
+            **Dependencia:**
+            - ∝ Z²
+            - ∝ 1/E²
+            - Contribución menor (<5%)
+            
+            **Importancia:**
+            - Efecto pequeño en diagnóstico
+            - Ignorado en cálculos simplificados
+            """)
+        
+        # Interactive comparison
+        st.markdown("---")
+        st.subheader("🔄 Comparación entre Tejidos")
+        
+        compare_tissues = st.multiselect(
+            "Selecciona tejidos para comparar",
+            list(TISSUES.keys()),
+            default=["Tejido blando", "Hueso cortical", "Pulmón"]
+        )
+        
+        if len(compare_tissues) > 0:
+            fig_compare_tissues = go.Figure()
+            
+            for tissue in compare_tissues:
+                props = TISSUES[tissue]
+                mu_values = [total_attenuation_coefficient(E, props["Z_eff"], props["density"]) 
+                           for E in energies_range]
+                
+                fig_compare_tissues.add_trace(go.Scatter(
+                    x=energies_range,
+                    y=mu_values,
+                    mode='lines',
+                    name=tissue,
+                    line=dict(width=3)
+                ))
+            
+            fig_compare_tissues.update_layout(
+                title="Coeficiente de Atenuación μ por Tipo de Tejido",
+                xaxis_title="Energía del Fotón (keV)",
+                yaxis_title="μ (cm⁻¹)",
+                hovermode='x unified',
+                height=450,
+                showlegend=True,
+                yaxis_type="log"  # Logarithmic scale for better visualization
+            )
+            
+            st.plotly_chart(fig_compare_tissues, use_container_width=True)
+            
+            st.caption("📊 Escala logarítmica: los tejidos con mayor Z y densidad atenúan más la radiación")
+    
+    # ============================================
+    # SECTION 2: PHANTOM CONSTRUCTOR
+    # ============================================
+    elif section == "🔬 Constructor de Phantom":
+        st.subheader("🔬 Constructor de Paciente Virtual (Phantom)")
+        
+        st.markdown("""
+        Construye tu propio "paciente virtual" apilando capas de diferentes tejidos.
+        Observa cómo los rayos X se atenúan al atravesar cada capa y cómo se forma la imagen final.
+        """)
+        
+        # kVp selection for phantom
+        phantom_col1, phantom_col2 = st.columns(2)
+        
+        with phantom_col1:
+            phantom_kVp = st.slider("kVp del haz", 40, 150, 80, 1, key="phantom_kvp")
+            phantom_mAs = st.slider("mAs", 1, 100, 10, 1, key="phantom_mas")
+            
+        with phantom_col2:
+            use_grid = st.checkbox("Usar rejilla anti-dispersión", value=True)
+            if use_grid:
+                grid_ratio = st.select_slider("Ratio de rejilla", options=[5, 8, 10, 12, 16], value=10)
+            else:
+                grid_ratio = 0
+        
+        # Phantom construction
+        st.markdown("### 🏗️ Construye tu Phantom")
+        st.caption("Añade capas de tejido de adelante hacia atrás (como atraviesa el haz de RX)")
+        
+        # Initialize phantom layers in session state
+        if 'phantom_layers' not in st.session_state:
+            st.session_state.phantom_layers = [
+                create_phantom_layer("Tejido blando", 5),
+                create_phantom_layer("Hueso cortical", 2),
+                create_phantom_layer("Tejido blando", 8)
+            ]
+        
+        # Add layer interface
+        add_col1, add_col2, add_col3 = st.columns([2, 2, 1])
+        
+        with add_col1:
+            new_tissue = st.selectbox("Tipo de tejido", list(TISSUES.keys()), key="new_tissue")
+        
+        with add_col2:
+            new_thickness = st.number_input("Espesor (cm)", 0.1, 20.0, 2.0, 0.5, key="new_thickness")
+        
+        with add_col3:
+            st.markdown("")
+            st.markdown("")
+            if st.button("➕ Añadir capa"):
+                st.session_state.phantom_layers.append(create_phantom_layer(new_tissue, new_thickness))
+                st.rerun()
+        
+        # Display current layers
+        st.markdown("### 📋 Capas Actuales del Phantom")
+        
+        if len(st.session_state.phantom_layers) == 0:
+            st.warning("No hay capas. Añade al menos una capa de tejido.")
+        else:
+            for idx, layer in enumerate(st.session_state.phantom_layers):
+                layer_col1, layer_col2, layer_col3, layer_col4 = st.columns([3, 2, 2, 1])
+                
+                with layer_col1:
+                    st.markdown(f"**{idx + 1}.** {layer['type']}")
+                
+                with layer_col2:
+                    st.text(f"Espesor: {layer['thickness']:.1f} cm")
+                
+                with layer_col3:
+                    st.text(f"Z={layer['Z_eff']:.1f}, ρ={layer['density']:.2f}")
+                
+                with layer_col4:
+                    if st.button("🗑️", key=f"delete_{idx}"):
+                        st.session_state.phantom_layers.pop(idx)
+                        st.rerun()
+            
+            # Clear all button
+            if st.button("🗑️ Limpiar todo"):
+                st.session_state.phantom_layers = []
+                st.rerun()
+            
+            # Calculate total thickness
+            total_thickness = sum(layer['thickness'] for layer in st.session_state.phantom_layers)
+            st.info(f"**Espesor total del phantom**: {total_thickness:.1f} cm")
+        
+        # Simulate if layers exist
+        if len(st.session_state.phantom_layers) > 0:
+            st.markdown("---")
+            
+            # Calculate effective energy from kVp
+            eff_energy = phantom_kVp * 0.4  # Approximation
+            
+            # Calculate transmission through each layer
+            transmissions = []
+            intensities = [100]  # Start with 100% intensity
+            
+            for layer in st.session_state.phantom_layers:
+                mu = total_attenuation_coefficient(eff_energy, layer['Z_eff'], layer['density'])
+                trans = calculate_transmission(layer['thickness'], mu)
+                transmissions.append(trans)
+                intensities.append(intensities[-1] * trans)
+            
+            # Monte Carlo simulation
+            transmitted, absorbed, scattered = simulate_photon_path(
+                st.session_state.phantom_layers, 
+                eff_energy, 
+                num_photons=1000
+            )
+            
+            # Visualization
+            vis_col1, vis_col2 = st.columns([2, 1])
+            
+            with vis_col1:
+                st.markdown("### 📊 Atenuación del Haz")
+                
+                # Create attenuation diagram
+                fig_atten = go.Figure()
+                
+                # Plot intensity through layers
+                positions = [0]
+                current_pos = 0
+                for layer in st.session_state.phantom_layers:
+                    current_pos += layer['thickness']
+                    positions.append(current_pos)
+                
+                fig_atten.add_trace(go.Scatter(
+                    x=positions,
+                    y=intensities,
+                    mode='lines+markers',
+                    name='Intensidad del haz',
+                    line=dict(color='blue', width=3),
+                    marker=dict(size=10)
+                ))
+                
+                # Add shaded regions for each layer
+                current_pos = 0
+                for idx, layer in enumerate(st.session_state.phantom_layers):
+                    fig_atten.add_vrect(
+                        x0=current_pos,
+                        x1=current_pos + layer['thickness'],
+                        fillcolor=TISSUES[layer['type']]['color'],
+                        opacity=0.3,
+                        layer="below",
+                        line_width=0,
+                        annotation_text=layer['type'],
+                        annotation_position="top"
+                    )
+                    current_pos += layer['thickness']
+                
+                fig_atten.update_layout(
+                    title="Atenuación del Haz a través del Phantom",
+                    xaxis_title="Posición (cm)",
+                    yaxis_title="Intensidad Relativa (%)",
+                    height=400,
+                    showlegend=True
+                )
+                
+                st.plotly_chart(fig_atten, use_container_width=True)
+            
+            with vis_col2:
+                st.markdown("### 🎯 Resultados")
+                
+                final_intensity = intensities[-1]
+                
+                st.metric(
+                    "Transmisión Total",
+                    f"{final_intensity:.1f}%",
+                    delta=f"-{100-final_intensity:.1f}%",
+                    delta_color="inverse"
+                )
+                
+                st.metric(
+                    "Fotones Transmitidos",
+                    f"{transmitted}/1000",
+                    help="Simulación Monte Carlo"
+                )
+                
+                st.metric(
+                    "Fotones Absorbidos",
+                    f"{absorbed}/1000",
+                    help="Efecto fotoeléctrico principalmente"
+                )
+                
+                st.metric(
+                    "Fotones Dispersos",
+                    f"{scattered}/1000",
+                    help="Dispersión Compton principalmente"
+                )
+                
+                # Grid effect
+                if use_grid:
+                    primary_through_grid = final_intensity * calculate_grid_transmission(grid_ratio, 40, is_scatter=False)
+                    scatter_through_grid = (scattered/1000*100) * calculate_grid_transmission(grid_ratio, 40, is_scatter=True)
+                    
+                    st.markdown("---")
+                    st.markdown("**Con Rejilla:**")
+                    st.metric(
+                        "Primarios en detector",
+                        f"{primary_through_grid:.1f}%"
+                    )
+                    st.metric(
+                        "Dispersión en detector",
+                        f"{scatter_through_grid:.1f}%",
+                        delta=f"-{(scattered/1000*100 - scatter_through_grid):.1f}%",
+                        delta_color="inverse"
+                    )
+            
+            # Photon paths visualization
+            st.markdown("---")
+            st.markdown("### 🌟 Simulación de Trayectorias de Fotones")
+            
+            if st.button("🎬 Simular Trayectorias de Fotones"):
+                # Create visual simulation
+                fig_photons = go.Figure()
+                
+                # Draw layers
+                current_x = 0
+                for layer in st.session_state.phantom_layers:
+                    fig_photons.add_shape(
+                        type="rect",
+                        x0=current_x, x1=current_x + layer['thickness'],
+                        y0=0, y1=10,
+                        fillcolor=TISSUES[layer['type']]['color'],
+                        opacity=0.3,
+                        line=dict(color="black", width=1)
+                    )
+                    # Label
+                    fig_photons.add_annotation(
+                        x=current_x + layer['thickness']/2,
+                        y=9,
+                        text=layer['type'],
+                        showarrow=False,
+                        font=dict(size=10)
+                    )
+                    current_x += layer['thickness']
+                
+                # Simulate some photon paths
+                np.random.seed(42)
+                num_visual_photons = 20
+                
+                for i in range(num_visual_photons):
+                    y_start = i * (10 / num_visual_photons)
+                    x_path = [0]
+                    y_path = [y_start]
+                    
+                    current_x = 0
+                    photon_alive = True
+                    color = 'green'
+                    
+                    for layer in st.session_state.phantom_layers:
+                        if not photon_alive:
+                            break
+                        
+                        mu = total_attenuation_coefficient(eff_energy, layer['Z_eff'], layer['density'])
+                        prob_interaction = 1 - np.exp(-mu * layer['thickness'])
+                        
+                        if np.random.random() < prob_interaction:
+                            # Interaction occurs
+                            interaction_point = current_x + np.random.random() * layer['thickness']
+                            x_path.append(interaction_point)
+                            y_path.append(y_start + np.random.normal(0, 0.5))
+                            
+                            # Determine if absorbed or scattered
+                            if np.random.random() < 0.4:  # Absorbed
+                                color = 'red'
+                                photon_alive = False
+                            else:  # Scattered
+                                color = 'orange'
+                                y_start += np.random.normal(0, 1)
+                        
+                        current_x += layer['thickness']
+                    
+                    if photon_alive:
+                        x_path.append(current_x)
+                        y_path.append(y_start)
+                        color = 'green'
+                    
+                    fig_photons.add_trace(go.Scatter(
+                        x=x_path,
+                        y=y_path,
+                        mode='lines',
+                        line=dict(color=color, width=1),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+                
+                fig_photons.update_layout(
+                    title="Trayectorias de Fotones (Simulación)",
+                    xaxis_title="Posición (cm)",
+                    yaxis_title="",
+                    height=400,
+                    yaxis=dict(showticklabels=False),
+                    showlegend=False
+                )
+                
+                st.plotly_chart(fig_photons, use_container_width=True)
+                
+                st.caption("""
+                🟢 Verde = Transmitido | 🟠 Naranja = Dispersado | 🔴 Rojo = Absorbido
+                """)
+            
+            # Beer-Lambert calculation
+            st.markdown("---")
+            st.markdown("### 📐 Ley de Beer-Lambert")
+            
+            st.latex(r"I = I_0 \times e^{-\mu x}")
+            
+            st.markdown("""
+            Donde:
+            - **I** = Intensidad tras atravesar el material
+            - **I₀** = Intensidad inicial
+            - **μ** = Coeficiente de atenuación lineal (cm⁻¹)
+            - **x** = Espesor del material (cm)
+            """)
+            
+            # Show calculation for each layer
+            with st.expander("📊 Ver cálculos detallados por capa"):
+                calc_data = []
+                current_intensity = 100
+                
+                for idx, layer in enumerate(st.session_state.phantom_layers):
+                    mu = total_attenuation_coefficient(eff_energy, layer['Z_eff'], layer['density'])
+                    trans = calculate_transmission(layer['thickness'], mu)
+                    intensity_after = current_intensity * trans
+                    attenuation_percent = (1 - trans) * 100
+                    
+                    calc_data.append({
+                        "Capa": f"{idx+1}. {layer['type']}",
+                        "Espesor (cm)": f"{layer['thickness']:.1f}",
+                        "μ (cm⁻¹)": f"{mu:.3f}",
+                        "Transmisión": f"{trans*100:.1f}%",
+                        "Atenuación": f"{attenuation_percent:.1f}%",
+                        "I antes": f"{current_intensity:.1f}%",
+                        "I después": f"{intensity_after:.1f}%"
+                    })
+                    
+                    current_intensity = intensity_after
+                
+                df_calc = pd.DataFrame(calc_data)
+                st.dataframe(df_calc, use_container_width=True)
+        
+        # Theory section
+        with st.expander("📚 Teoría: Formación de la Imagen Radiográfica"):
+            st.markdown("""
+            ## 🎯 Cómo se Forma la Imagen
+            
+            ### Principio Fundamental
+            
+            La imagen radiográfica se basa en la **atenuación diferencial** de los rayos X 
+            al atravesar tejidos de diferente densidad y composición.
+            
+            **Proceso**:
+            1. **Haz uniforme** sale del tubo
+            2. **Atraviesa el paciente** → diferentes tejidos atenúan diferente
+            3. **Haz modulado** (con información anatómica) llega al detector
+            4. **Detector** convierte RX en señal eléctrica/imagen
+            
+            ### Factores que Determinan la Atenuación
+            
+            #### 1. Número Atómico (Z)
+            
+            - Mayor Z → Mayor atenuación (especialmente fotoeléctrico)
+            - **Ejemplos**:
+              - Hueso (Ca, Z=20): Alta atenuación → Blanco en imagen
+              - Tejido blando (C, H, O, N; Z~7): Media atenuación → Gris
+              - Aire (Z~7.6 pero baja densidad): Baja atenuación → Negro
+            
+            #### 2. Densidad Física (ρ)
+            
+            - Más átomos por cm³ → Mayor probabilidad de interacción
+            - **Ejemplos**:
+              - Hueso cortical: 1.92 g/cm³
+              - Músculo: 1.05 g/cm³
+              - Pulmón: 0.3 g/cm³
+              - Aire: 0.001 g/cm³
+            
+            #### 3. Espesor del Tejido (x)
+            
+            - Relación exponencial: duplicar espesor NO duplica atenuación
+            - Ley de Beer-Lambert
+            
+            #### 4. Energía del Haz (kVp)
+            
+            - Mayor energía → Menor atenuación (más penetración)
+            - Afecta el contraste entre tejidos
+            
+            ### Contraste Radiográfico
+            
+            **Definición**: Diferencia de intensidad entre dos regiones adyacentes
+            """)
+            
+            st.latex(r"Contraste = \frac{|I_1 - I_2|}{I_1 + I_2}")
+            
+            st.markdown("""
+            **Tipos de contraste**:
+            
+            1. **Contraste de Sujeto**: Inherente al paciente
+               - Depende de diferencias anatómicas
+               - No podemos modificarlo
+            
+            2. **Contraste Radiográfico**: En el haz que sale
+               - Depende de kVp, espesor, Z
+               - Lo controlamos con técnica
+            
+            3. **Contraste de la Imagen**: Lo que vemos
+               - Depende también del detector y procesado
+               - Post-procesado digital puede modificarlo
+            
+            ### Optimización del Contraste
+            
+            **Para MAXIMIZAR contraste**:
+            - ✅ Usar kVp bajo (↑ efecto fotoeléctrico)
+            - ✅ Aplicable solo en partes delgadas
+            - ✅ Ejemplo: Extremidades (50-60 kVp)
+            
+            **Para PARTES GRUESAS**:
+            - ↑ kVp para penetración (sacrifica contraste)
+            - Compensar con procesado digital
+            - Usar rejilla (elimina dispersión)
+            
+            ### Ley de Beer-Lambert Extendida
+            
+            Para múltiples capas de diferentes materiales:
+            """)
+            
+            st.latex(r"I = I_0 \times e^{-(\mu_1 x_1 + \mu_2 x_2 + ... + \mu_n x_n)}")
+            
+            st.markdown("""
+            O equivalente:
+            """)
+            
+            st.latex(r"I = I_0 \times e^{-\mu_1 x_1} \times e^{-\mu_2 x_2} \times ... \times e^{-\mu_n x_n}")
+            
+            st.markdown("""
+            Cada capa de tejido atenúa el haz de forma independiente y multiplicativa.
+            
+            ### Dispersión: El Enemigo del Contraste
+            
+            **Problema**: Los fotones dispersados (Compton) llegan al detector desde 
+            direcciones incorrectas, creando una "niebla" que reduce el contraste.
+            
+            **Cantidad de dispersión depende de**:
+            - ↑ Volumen irradiado (área × espesor)
+            - ↑ kVp (más Compton)
+            - Tipo de tejido (agua/tejido blando genera más)
+            
+            **Relación dispersión/primarios**:
+            - Extremidad: ~0.5:1 (tolerable sin rejilla)
+            - Abdomen: ~5:1 (requiere rejilla)
+            - Paciente obeso: >10:1 (rejilla obligatoria)
+            
+            **Soluciones**:
+            1. **Colimación estricta**: ↓ volumen irradiado
+            2. **Rejilla anti-dispersión**: Elimina fotones oblicuos
+            3. **Air gap**: Distancia entre paciente y detector
+            4. **Procesado digital**: Reducción software (limitado)
+            
+            ### Aplicación Práctica
+            
+            **Caso típico: Tórax PA**
+            
+            Atraviesa:
+            1. Tejido blando (pared torácica): ~2 cm
+            2. Pulmón (aire): ~20 cm
+            3. Mediastino (tejido + sangre): ~8 cm
+            4. Pulmón (aire): ~20 cm
+            5. Tejido blando (pared posterior): ~2 cm
+            
+            **Resultado**:
+            - Campos pulmonares: Baja atenuación → Negro (estructura vascular visible)
+            - Mediastino: Alta atenuación → Blanco
+            - Costillas: Muy alta atenuación → Blanco brillante
+            - Contraste natural excelente (alto kVp posible: 110-125)
+            
+            **Caso típico: Abdomen AP**
+            
+            Atraviesa:
+            - Principalmente tejido blando/agua
+            - Espesor variable (15-30 cm)
+            - Poco contraste natural (todo similar Z y ρ)
+            
+            **Resultado**:
+            - Bajo contraste inherente
+            - Requiere kVp moderado (70-80) para contraste
+            - Gas intestinal proporciona contraste natural
+            - Contraste artificial (Ba, I) a veces necesario
+            """)
+    
+    # ============================================
+    # SECTION 3: ANTI-SCATTER GRIDS
+    # ============================================
+    elif section == "🎯 Rejillas Anti-Dispersión":
+        st.subheader("🎯 Rejillas Anti-Dispersión")
+        
+        st.markdown("""
+        Las rejillas eliminan la radiación dispersa que degrada el contraste de la imagen.
+        Explora cómo diferentes configuraciones de rejilla afectan la calidad de imagen y la dosis.
+        """)
+        
+        # Grid parameters
+        grid_col1, grid_col2, grid_col3 = st.columns(3)
+        
+        with grid_col1:
+            st.markdown("##### Parámetros de la Rejilla")
+            grid_ratio_section = st.select_slider(
+                "Ratio de rejilla (r)",
+                options=[5, 6, 8, 10, 12, 16],
+                value=10,
+                help="Relación altura de las láminas / distancia entre ellas"
+            )
+            
+        with grid_col2:
+            grid_frequency = st.slider(
+                "Frecuencia (líneas/cm)",
+                20, 80, 40, 5,
+                help="Número de líneas de plomo por centímetro"
+            )
+            
+        with grid_col3:
+            grid_type = st.selectbox(
+                "Tipo de rejilla",
+                ["Lineal", "Cruzada"],
+                help="Lineal: líneas en una dirección. Cruzada: dos direcciones perpendiculares"
+            )
+        
+        # Scenario selection
+        st.markdown("### 📋 Escenario Clínico")
+        grid_scenario = st.selectbox(
+            "Selecciona anatomía",
+            ["Tórax PA", "Abdomen AP", "Pelvis AP", "Columna Lumbar LAT", "Extremidad (sin rejilla)"]
+        )
+        
+        # Define scenarios with scatter-to-primary ratios
+        scenarios_data = {
+            "Tórax PA": {"thickness": 25, "scatter_ratio": 1.5, "kVp_typical": 120},
+            "Abdomen AP": {"thickness": 25, "scatter_ratio": 5.0, "kVp_typical": 75},
+            "Pelvis AP": {"thickness": 25, "scatter_ratio": 6.0, "kVp_typical": 80},
+            "Columna Lumbar LAT": {"thickness": 35, "scatter_ratio": 8.0, "kVp_typical": 90},
+            "Extremidad (sin rejilla)": {"thickness": 8, "scatter_ratio": 0.3, "kVp_typical": 55}
+        }
+        
+        scenario_params = scenarios_data[grid_scenario]
+        scatter_to_primary = scenario_params["scatter_ratio"]
+        
+        # Calculate grid performance
+        primary_transmission = calculate_grid_transmission(grid_ratio_section, grid_frequency, is_scatter=False)
+        scatter_transmission = calculate_grid_transmission(grid_ratio_section, grid_frequency, is_scatter=True)
+        
+        # With and without grid
+        primary_signal = 100
+        scatter_signal = primary_signal * scatter_to_primary
+        
+        # Without grid
+        total_without_grid = primary_signal + scatter_signal
+        contrast_without = primary_signal / total_without_grid
+        
+        # With grid
+        primary_through_grid = primary_signal * primary_transmission
+        scatter_through_grid = scatter_signal * scatter_transmission
+        total_with_grid = primary_through_grid + scatter_through_grid
+        contrast_with = primary_through_grid / total_with_grid if total_with_grid > 0 else 0
+        
+        # Contrast improvement factor
+        contrast_improvement = contrast_with / contrast_without if contrast_without > 0 else 1
+        
+        # Bucky factor (dose increase needed)
+        bucky_factor = 1 / primary_transmission
+        
+        # Display results
+        st.markdown("---")
+        st.markdown("### 📊 Resultados")
+        
+        result_col1, result_col2, result_col3, result_col4 = st.columns(4)
+        
+        with result_col1:
+            st.metric(
+                "Mejora de Contraste",
+                f"{contrast_improvement:.2f}x",
+                help="Factor de mejora del contraste con rejilla vs sin rejilla"
+            )
+            
+        with result_col2:
+            st.metric(
+                "Factor Bucky",
+                f"{bucky_factor:.2f}x",
+                delta="Aumento de dosis necesario",
+                delta_color="inverse",
+                help="Factor de aumento de mAs necesario para compensar absorción de la rejilla"
+            )
+            
+        with result_col3:
+            st.metric(
+                "Dispersión Eliminada",
+                f"{(1-scatter_transmission)*100:.0f}%",
+                help="Porcentaje de radiación dispersa bloqueada"
+            )
+            
+        with result_col4:
+            selectivity = scatter_transmission / primary_transmission if primary_transmission > 0 else 0
+            st.metric(
+                "Selectividad",
+                f"{selectivity:.2f}",
+                help="Ratio scatter_trans/primary_trans. Menor es mejor"
+            )
+        
+        # Visualization
+        vis_col1, vis_col2 = st.columns(2)
+        
+        with vis_col1:
+            st.markdown("#### Sin Rejilla")
+            
+            fig_without = go.Figure()
+            
+            fig_without.add_trace(go.Bar(
+                x=['Primaria', 'Dispersa'],
+                y=[primary_signal, scatter_signal],
+                marker_color=['blue', 'red'],
+                text=[f'{primary_signal:.0f}', f'{scatter_signal:.0f}'],
+                textposition='auto'
+            ))
+            
+            fig_without.update_layout(
+                title=f"Radiación en Detector (Sin Rejilla)",
+                yaxis_title="Intensidad Relativa",
+                height=400,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_without, use_container_width=True)
+            
+            st.info(f"""
+            **Contraste**: {contrast_without*100:.1f}%
+            
+            La dispersión ({scatter_signal:.0f}) degrada significativamente 
+            la calidad de la imagen.
+            """)
+            
+        with vis_col2:
+            st.markdown("#### Con Rejilla")
+            
+            fig_with = go.Figure()
+            
+            fig_with.add_trace(go.Bar(
+                x=['Primaria', 'Dispersa'],
+                y=[primary_through_grid, scatter_through_grid],
+                marker_color=['darkblue', 'darkred'],
+                text=[f'{primary_through_grid:.0f}', f'{scatter_through_grid:.0f}'],
+                textposition='auto'
+            ))
+            
+            fig_with.update_layout(
+                title=f"Radiación en Detector (Con Rejilla {grid_ratio_section}:1)",
+                yaxis_title="Intensidad Relativa",
+                height=400,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_with, use_container_width=True)
+            
+            st.success(f"""
+            **Contraste**: {contrast_with*100:.1f}%
+            
+            Mejora de contraste: **{contrast_improvement:.2f}x**
+            
+            ⚠️ Pero requiere **{bucky_factor:.2f}x** más dosis
+            """)
+        
+        # Grid diagram
+        st.markdown("---")
+        st.markdown("### 🔬 Estructura de la Rejilla")
+        
+        # Visual representation of grid
+        fig_grid = go.Figure()
+        
+        # Draw grid lines
+        num_lines = 15
+        for i in range(num_lines):
+            x_pos = i * (10 / num_lines)
+            # Grid septa
+            fig_grid.add_shape(
+                type="rect",
+                x0=x_pos, x1=x_pos + 0.1,
+                y0=0, y1=grid_ratio_section,
+                fillcolor="gray",
+                line=dict(color="black", width=1)
+            )
+        
+        # Add some photon paths
+        # Primary (vertical)
+        for i in range(3):
+            x_primary = 2 + i * 3
+            fig_grid.add_annotation(
+                x=x_primary,
+                y=grid_ratio_section + 1,
+                ax=x_primary,
+                ay=-1,
+                xref='x', yref='y',
+                axref='x', ayref='y',
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=3,
+                arrowcolor='blue',
+            )
+            fig_grid.add_annotation(
+                x=x_primary,
+                y=grid_ratio_section + 1.5,
+                text="Primario ✓",
+                showarrow=False,
+                font=dict(color='blue', size=10)
+            )
+        
+        # Scattered (oblique) - blocked
+        for i in range(2):
+            x_start = 1.5 + i * 4
+            x_end = x_start + 2
+            fig_grid.add_annotation(
+                x=x_end,
+                y=-0.5,
+                ax=x_start,
+                ay=grid_ratio_section + 1,
+                xref='x', yref='y',
+                axref='x', ayref='y',
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=3,
+                arrowcolor='red',
+            )
+            fig_grid.add_annotation(
+                x=x_start + 1,
+                y=grid_ratio_section/2,
+                text="✗",
+                showarrow=False,
+                font=dict(color='red', size=20)
+            )
+        
+        # Add labels
+        fig_grid.add_annotation(
+            x=5, y=-2,
+            text=f"Ratio = Altura (h) / Distancia (d) = {grid_ratio_section}:1<br>Frecuencia = {grid_frequency} líneas/cm",
+            showarrow=False,
+            font=dict(size=12)
+        )
+        
+        fig_grid.add_annotation(
+            x=0.5, y=grid_ratio_section/2,
+            text=f"h = {grid_ratio_section}",
+            showarrow=True,
+            arrowhead=2,
+            ax=0.5,
+            ay=0,
+            font=dict(size=10)
+        )
+        
+        fig_grid.update_layout(
+            title="Principio de Funcionamiento de la Rejilla",
+            xaxis=dict(range=[-0.5, 10.5], showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(range=[-3, grid_ratio_section + 2], showgrid=False, zeroline=False, showticklabels=False),
+            height=400,
+            showlegend=False,
+            plot_bgcolor='white'
+        )
+        
+        st.plotly_chart(fig_grid, use_container_width=True)
+        
+        st.caption("""
+        🔵 **Azul**: Radiación primaria (perpendicular) → Pasa a través de la rejilla
+        🔴 **Rojo**: Radiación dispersa (oblicua) → Bloqueada por las láminas de plomo
+        """)
+        
+        # Recommendations table
+        st.markdown("---")
+        st.markdown("### 📋 Recomendaciones por Anatomía")
+        
+        recommendations = {
+            "Anatomía": ["Extremidades", "Tórax PA", "Abdomen", "Pelvis", "Columna Lumbar LAT"],
+            "Espesor (cm)": ["< 10", "20-25", "20-30", "20-25", "30-40"],
+            "Rejilla Necesaria": ["No", "Sí", "Sí", "Sí", "Sí"],
+            "Ratio Recomendado": ["-", "8:1 - 10:1", "10:1 - 12:1", "10:1 - 12:1", "12:1 - 16:1"],
+            "Frecuencia": ["-", "40-50", "40-50", "40-50", "40-60"],
+            "Factor Bucky Típico": ["1.0", "3-4", "4-5", "4-5", "5-6"]
+        }
+        
+        df_recommendations = pd.DataFrame(recommendations)
+        st.dataframe(df_recommendations, use_container_width=True)
+        
+        # Grid selection tool
+        st.markdown("---")
+        st.markdown("### 🎯 Asistente de Selección de Rejilla")
+        
+        assist_col1, assist_col2 = st.columns(2)
+        
+        with assist_col1:
+            patient_thickness = st.slider("Espesor del paciente (cm)", 5, 45, 25)
+            exam_kVp = st.slider("kVp de la técnica", 40, 150, 80)
+            
+        with assist_col2:
+            # Recommendation logic
+            if patient_thickness < 10:
+                recommended_grid = "Sin rejilla"
+                recommended_ratio = "-"
+                reason = "Parte delgada, poca dispersión generada"
+            elif patient_thickness < 20:
+                recommended_grid = "Rejilla 8:1"
+                recommended_ratio = "8:1"
+                reason = "Espesor moderado, rejilla de ratio bajo suficiente"
+            elif patient_thickness < 30:
+                recommended_grid = "Rejilla 10:1 o 12:1"
+                recommended_ratio = "10:1 - 12:1"
+                reason = "Espesor estándar, rejilla de ratio medio óptimo"
+            else:
+                recommended_grid = "Rejilla 12:1 o 16:1"
+                recommended_ratio = "12:1 - 16:1"
+                reason = "Parte muy gruesa, alta dispersión, necesita ratio alto"
+            
+            st.success(f"""
+            **Recomendación**: {recommended_grid}
+            
+            **Ratio**: {recommended_ratio}
+            
+            **Razón**: {reason}
+            """)
+            
+            # Additional considerations
+            if exam_kVp > 100:
+                st.warning("⚠️ Alto kVp aumenta dispersión Compton. Considera ratio mayor.")
+            
+            if exam_kVp < 60:
+                st.info("💡 Bajo kVp (menos dispersión). Rejilla de ratio bajo o sin rejilla puede ser suficiente.")
+        
+        # Theory expander
+        with st.expander("📚 Teoría: Rejillas Anti-Dispersión"):
+            st.markdown("""
+            ## 🎯 Fundamentos de las Rejillas Anti-Dispersión
+            
+            ### Problema: La Dispersión Compton
+            
+            Cuando los rayos X atraviesan el paciente:
+            - **Radiación primaria**: Sale en línea recta, porta información anatómica
+            - **Radiación dispersa**: Sale en todas direcciones, NO porta información útil
+            
+            La dispersión crea una **"niebla"** uniforme que:
+            - ❌ Reduce el contraste
+            - ❌ Degrada la calidad de imagen
+            - ❌ Dificulta el diagnóstico
+            
+            ### Solución: La Rejilla
+            
+            **Principio**: Láminas de plomo muy finas y paralelas que actúan como "filtro direccional"
+            
+            - ✅ Radiación perpendicular (primaria) → Pasa entre las láminas
+            - ❌ Radiación oblicua (dispersa) → Bloqueada por las láminas
+            
+            ### Parámetros de la Rejilla
+            
+            #### 1. Ratio de Rejilla (r)
+            
+            Relación entre altura (h) de las láminas y distancia (d) entre ellas:
+            """)
+            
+            st.latex(r"r = \frac{h}{d}")
+            
+            st.markdown("""
+            **Ejemplos**:
+            - **5:1**: Rejilla "suave" (poco selectiva)
+            - **8:1**: Estándar para radiología general
+            - **12:1**: Alta selectividad (partes gruesas)
+            - **16:1**: Muy selectiva (máxima eliminación dispersión)
+            
+            **Efecto del ratio**:
+            - ↑ Ratio → ↑ Eliminación de dispersión → ↑ Contraste
+            - ↑ Ratio → ↑ Absorción de primarios → ↑ Dosis necesaria
+            - ↑ Ratio → ↑ Criticidad de alineación (más errores si mal centrado)
+            
+            #### 2. Frecuencia (líneas/cm)
+            
+            Número de láminas de plomo por centímetro.
+            
+            **Rangos típicos**:
+            - **Baja frecuencia** (30-40 líneas/cm): Láminas visibles, económica
+            - **Alta frecuencia** (60-80 líneas/cm): Láminas invisibles, mejor estética
+            
+            **Trade-off**:
+            - ↑ Frecuencia → Líneas menos visibles → Mejor apariencia
+            - ↑ Frecuencia → Más plomo → Mayor absorción primarios
+            
+            #### 3. Tipo de Rejilla
+            
+            **Lineal**:
+            - Láminas en una sola dirección
+            - Permite angulación perpendicular a las líneas
+            - Estándar en radiología general
+            
+            **Cruzada (Crossed)**:
+            - Dos rejillas lineales perpendiculares
+            - Elimina dispersión en todas direcciones
+            - Mayor selectividad pero NO permite angulación
+            - Usado en TC (detector fijo)
+            
+            **Enfocada vs Paralela**:
+            - **Enfocada**: Láminas convergen hacia foco del tubo
+            - **Paralela**: Láminas paralelas (portátiles, fluoroscopia)
+            
+            ### Factor Bucky (Factor de Rejilla)
+            
+            **Definición**: Factor de aumento de dosis necesario para compensar 
+            la absorción de radiación primaria por la rejilla.
+            """)
+            
+            st.latex(r"B = \frac{\text{mAs con rejilla}}{\text{mAs sin rejilla}}")
+            
+            st.markdown("""
+            **Valores típicos**:
+            - Rejilla 5:1 → B ≈ 2
+            - Rejilla 8:1 → B ≈ 3-4
+            - Rejilla 10:1 → B ≈ 4-5
+            - Rejilla 12:1 → B ≈ 5-6
+            - Rejilla 16:1 → B ≈ 6-8
+            
+            **Implicación práctica**: Si usas rejilla, debes multiplicar el mAs por el factor Bucky.
+            
+            ### Selectividad de la Rejilla
+            
+            Mide la capacidad de discriminar entre primaria y dispersa:
+            """)
+            
+            st.latex(r"\Sigma = \frac{T_p}{T_s}")
+            
+            st.markdown("""
+            Donde:
+            - T_p = Transmisión de primaria
+            - T_s = Transmisión de dispersa
+            
+            **Mayor selectividad** (Σ alto) = Mejor rejilla
+            
+            ### Contrast Improvement Factor (CIF)
+            
+            Medida de mejora de contraste:
+            """)
+            
+            st.latex(r"CIF = \frac{C_{\text{con rejilla}}}{C_{\text{sin rejilla}}}")
+            
+            st.markdown("""
+            Valores típicos: 1.5 - 4.0 dependiendo de:
+            - Ratio de rejilla
+            - Cantidad de dispersión (espesor, kVp)
+            - Anatomía
+            
+            ### Errores Comunes con Rejillas
+            
+            #### 1. Error de Centrado (Grid Cut-Off)
+            
+            **Causa**: Rayo central no perpendicular al centro de rejilla
+            
+            **Efecto**: 
+            - Pérdida de densidad en uno o ambos lados
+            - Imagen más clara en zonas periféricas
+            
+            **Prevención**:
+            - Centrar correctamente haz y rejilla
+            - Distancia correcta (focal distance)
+            
+            #### 2. Inversión de Rejilla (Upside-Down)
+            
+            **Causa**: Rejilla enfocada instalada al revés
+            
+            **Efecto**:
+            - Imagen muy clara (subexpuesta)
+            - Bordes oscuros característicos
+            
+            **Prevención**:
+            - Verificar marca de "tube side"
+            - No ocurre con rejillas paralelas
+            
+            #### 3. Grid Lines Visibles
+            
+            **Causa**:
+            - Rejilla estacionaria (no Bucky)
+            - Baja frecuencia
+            - Imagen digital sobre-procesada
+            
+            **Solución**:
+            - Usar Bucky móvil (mueve rejilla durante exposición)
+            - Alta frecuencia (>60 líneas/cm)
+            - Ajustar procesado
+            
+            #### 4. Error de Distancia Focal
+            
+            **Causa**: Usar rejilla enfocada a distancia incorrecta
+            
+            **Efecto**: Cut-off periférico
+            
+            **Prevención**: Respetar distancia focal de rejilla (ej: 100 cm)
+            
+            ### Alternativas a la Rejilla
+            
+            #### 1. Air Gap Technique
+            
+            Aumentar distancia paciente-detector (15-20 cm):
+            - Dispersión "falla" el detector (divergencia geométrica)
+            - No requiere rejilla
+            - Pero: ↑ Magnificación, ↓ Resolución
+            - Usado en: Radiografía lateral de columna cervical
+            
+            #### 2. Colimación Estricta
+            
+            - Reduce volumen irradiado → Menos dispersión generada
+            - Siempre primer paso de optimización
+            - Complementa (no sustituye) rejilla
+            
+            #### 3. kVp Óptimo
+            
+            - kVp bajo → Menos Compton → Menos dispersión
+            - Pero: Solo aplicable en partes delgadas
+            
+            ### Decisión: ¿Usar o No Rejilla?
+            
+            **Usar rejilla SI**:
+            - ✅ Espesor > 10-12 cm
+            - ✅ kVp > 70
+            - ✅ Área grande (> 20×20 cm)
+            - ✅ Anatomía densa (abdomen, pelvis)
+            
+            **NO usar rejilla SI**:
+            - ✅ Espesor < 10 cm
+            - ✅ Pediatría (minimizar dosis)
+            - ✅ Extremidades distales
+            - ✅ Mamografía (técnica especial)
+            
+            ### Rejillas en Modalidades Especiales
+            
+            #### TC (Tomografía Computarizada)
+            
+            - **Rejillas lineales** enfocadas al foco
+            - **Alta frecuencia** (>60 líneas/cm) para invisibilidad
+            - **Ratio moderado** (8:1 - 10:1)
+            - Orientación 1D permite geometría helicoidal
+            - Algunos sistemas modernos: Sin rejilla (colimación post-paciente)
+            
+            #### Fluoroscopia
+            
+            - **Rejilla móvil** (reciprocating Bucky) obligatoria
+            - **Ratio bajo-medio** (6:1 - 8:1) para permitir angulación
+            - Movimiento durante exposición elimina líneas
+            - Crítico por tiempo de exposición largo
+            
+            #### Radiografía Digital
+            
+            - Mismos principios que analógica
+            - **Ventaja**: Post-procesado puede mejorar contraste
+            - **Riesgo**: "Creep" de dosis (sobreexposición no visible)
+            - Rejilla sigue siendo necesaria
+            
+            #### Mamografía
+            
+            - **Rejilla especial** de ratio bajo (4:1 - 5:1)
+            - **Muy alta frecuencia** (>70 líneas/cm)
+            - Material: Fibra de carbono (radiotransparente)
+            - Móvil para eliminar líneas
+            - Crítico: Máximo contraste en tejido blando
+            
+            ### Mantenimiento y Control de Calidad
+            
+            **Verificaciones periódicas**:
+            1. ✅ Alineación rejilla-detector
+            2. ✅ Integridad física (sin dobleces)
+            3. ✅ Uniformidad de transmisión
+            4. ✅ Test de cut-off con desalineación intencional
+            5. ✅ Factor Bucky experimental
+            
+            **Vida útil**: 
+            - Rejilla fija: 10+ años
+            - Bucky móvil: Mantenimiento motor cada 2-3 años
+            
+            ### Conclusión Práctica
+            
+            La rejilla es un **compromiso**:
+            - ✅ Ganas: Contraste, calidad diagnóstica
+            - ❌ Pierdes: Dosis aumentada, complejidad técnica
+            
+            **Regla de oro**: Usa rejilla cuando la dispersión degrada la imagen más 
+            de lo que el aumento de dosis perjudica al paciente.
+            
+            Para partes gruesas (>12 cm) y áreas grandes, ¡la rejilla es esencial!
+            """)
+    
+    # ============================================
+    # SECTION 4: CONTRAST AND QUALITY
+    # ============================================
+    elif section == "📈 Contraste y Calidad":
+        st.subheader("📈 Contraste Radiográfico y Calidad de Imagen")
+        
+        st.markdown("""
+        El contraste es la diferencia visible entre estructuras anatómicas. 
+        Explora cómo los parámetros técnicos afectan el contraste y la calidad de imagen.
+        """)
+        
+        # Parameter controls
+        contrast_col1, contrast_col2, contrast_col3 = st.columns(3)
+        
+        with contrast_col1:
+            st.markdown("##### Técnica")
+            contrast_kVp = st.slider("kVp", 40, 150, 70, 1, key="contrast_kvp")
+            contrast_mAs = st.slider("mAs", 1, 100, 20, 1, key="contrast_mas")
+            
+        with contrast_col2:
+            st.markdown("##### Objeto")
+            object_type_1 = st.selectbox("Tejido 1", list(TISSUES.keys()), index=2, key="obj1")
+            object_thickness_1 = st.slider("Espesor 1 (cm)", 0.5, 10.0, 5.0, 0.5, key="thick1")
+            
+        with contrast_col3:
+            st.markdown("##### Comparación")
+            object_type_2 = st.selectbox("Tejido 2", list(TISSUES.keys()), index=5, key="obj2")
+            object_thickness_2 = st.slider("Espesor 2 (cm)", 0.5, 10.0, 2.0, 0.5, key="thick2")
+        
+        # Calculate transmissions
+        eff_energy_contrast = contrast_kVp * 0.4
+        
+        # Tissue 1
+        tissue1_props = TISSUES[object_type_1]
+        mu1 = total_attenuation_coefficient(eff_energy_contrast, tissue1_props["Z_eff"], tissue1_props["density"])
+        trans1 = calculate_transmission(object_thickness_1, mu1)
+        intensity1 = 100 * trans1
+        
+        # Tissue 2
+        tissue2_props = TISSUES[object_type_2]
+        mu2 = total_attenuation_coefficient(eff_energy_contrast, tissue2_props["Z_eff"], tissue2_props["density"])
+        trans2 = calculate_transmission(object_thickness_2, mu2)
+        intensity2 = 100 * trans2
+        
+        # Calculate contrast
+        contrast_value = calculate_contrast(intensity1, intensity2)
+        
+        # Display results
+        st.markdown("---")
+        st.markdown("### 📊 Análisis de Contraste")
+        
+        result_col1, result_col2, result_col3 = st.columns(3)
+        
+        with result_col1:
+            st.metric(
+                f"Intensidad - {object_type_1}",
+                f"{intensity1:.1f}%",
+                help=f"Radiación transmitida a través de {object_thickness_1} cm de {object_type_1}"
+            )
+            
+        with result_col2:
+            st.metric(
+                f"Intensidad - {object_type_2}",
+                f"{intensity2:.1f}%",
+                help=f"Radiación transmitida a través de {object_thickness_2} cm de {object_type_2}"
+            )
+            
+        with result_col3:
+            # Contrast quality indicator
+            if contrast_value > 0.3:
+                contrast_quality = "🟢 Excelente"
+                contrast_color = "success"
+            elif contrast_value > 0.15:
+                contrast_quality = "🟡 Bueno"
+                contrast_color = "info"
+            elif contrast_value > 0.05:
+                contrast_quality = "🟠 Moderado"
+                contrast_color = "warning"
+            else:
+                contrast_quality = "🔴 Pobre"
+                contrast_color = "error"
+            
+            st.metric(
+                "Contraste",
+                f"{contrast_value:.3f}",
+                help="Contraste = |I1-I2|/(I1+I2)"
+            )
+            
+            if contrast_color == "success":
+                st.success(contrast_quality)
+            elif contrast_color == "info":
+                st.info(contrast_quality)
+            elif contrast_color == "warning":
+                st.warning(contrast_quality)
+            else:
+                st.error(contrast_quality)
+        
+        # Visual comparison
+        st.markdown("### 🎨 Visualización de Contraste")
+        
+        fig_contrast_vis = go.Figure()
+        
+        # Create two rectangles representing the image intensity
+        fig_contrast_vis.add_trace(go.Bar(
+            x=[object_type_1, object_type_2],
+            y=[intensity1, intensity2],
+            marker=dict(
+                color=[intensity1, intensity2],
+                colorscale='Greys',
+                showscale=False,
+                line=dict(color='black', width=2)
+            ),
+            text=[f"{intensity1:.1f}%", f"{intensity2:.1f}%"],
+            textposition='auto',
+            showlegend=False
+        ))
+        
+        fig_contrast_vis.update_layout(
+            title="Intensidad en el Detector (Escala de Grises)",
+            xaxis_title="Tejido",
+            yaxis_title="Intensidad Relativa (%)",
+            yaxis=dict(range=[0, 100]),
+            height=400
+        )
+        
+        st.plotly_chart(fig_contrast_vis, use_container_width=True)
+        
+        # Effect of kVp on contrast
+        st.markdown("---")
+        st.markdown("### 📉 Efecto del kVp en el Contraste")
+        
+        # Calculate contrast at different kVps
+        kVp_range = np.arange(40, 151, 5)
+        contrasts_at_kVps = []
+        
+        for kvp in kVp_range:
+            eff_e = kvp * 0.4
+            mu1_temp = total_attenuation_coefficient(eff_e, tissue1_props["Z_eff"], tissue1_props["density"])
+            mu2_temp = total_attenuation_coefficient(eff_e, tissue2_props["Z_eff"], tissue2_props["density"])
+            
+            i1_temp = 100 * calculate_transmission(object_thickness_1, mu1_temp)
+            i2_temp = 100 * calculate_transmission(object_thickness_2, mu2_temp)
+            
+            contrast_temp = calculate_contrast(i1_temp, i2_temp)
+            contrasts_at_kVps.append(contrast_temp)
+        
+        fig_contrast_kvp = go.Figure()
+        
+        fig_contrast_kvp.add_trace(go.Scatter(
+            x=kVp_range,
+            y=contrasts_at_kVps,
+            mode='lines',
+            name='Contraste',
+            line=dict(color='purple', width=3)
+        ))
+        
+        # Mark current kVp
+        fig_contrast_kvp.add_vline(
+            x=contrast_kVp,
+            line_dash="dash",
+            line_color="red",
+            annotation_text=f"kVp actual: {contrast_kVp}",
+            annotation_position="top"
+        )
+        
+        fig_contrast_kvp.update_layout(
+            title=f"Contraste entre {object_type_1} y {object_type_2} vs kVp",
+            xaxis_title="kVp",
+            yaxis_title="Contraste",
+            hovermode='x',
+            height=400
+        )
+        
+        st.plotly_chart(fig_contrast_kvp, use_container_width=True)
+        
+        st.info("""
+        📉 **Observación clave**: El contraste **disminuye** al aumentar kVp
+        
+        **Por qué**: 
+        - Mayor energía → Más penetración → Menos diferencia en atenuación
+        - Efecto fotoeléctrico (dependiente de Z) disminuye
+        - Efecto Compton (independiente de Z) domina
+        
+        **Implicación práctica**: 
+        - Bajo kVp = Alto contraste (pero solo en partes delgadas)
+        - Alto kVp = Bajo contraste (pero mejor penetración)
+        """)
+        
+        # Latitude (exposure latitude)
+        st.markdown("---")
+        st.markdown("### 📏 Latitud de Exposición")
+        
+        st.markdown("""
+        La **latitud** es el rango de exposiciones que produce una imagen diagnóstica aceptable.
+        """)
+        
+        lat_col1, lat_col2 = st.columns(2)
+        
+        with lat_col1:
+            st.markdown("#### Alto kVp (Técnica Larga)")
+            st.success("""
+            **Ventajas**:
+            - ✅ Mayor latitud (más "perdona" errores)
+            - ✅ Menor dosis al paciente
+            - ✅ Menos sensible a variaciones de espesor
+            - ✅ Mejor para partes gruesas
+            
+            **Desventajas**:
+            - ❌ Menor contraste
+            - ❌ Más dispersión
+            """)
+            
+        with lat_col2:
+            st.markdown("#### Bajo kVp (Técnica Corta)")
+            st.warning("""
+            **Ventajas**:
+            - ✅ Mayor contraste
+            - ✅ Mejor detalle tejidos blandos
+            - ✅ Menos dispersión
+            
+            **Desventajas**:
+            - ❌ Menor latitud (menos margen error)
+            - ❌ Mayor dosis al paciente
+            - ❌ Solo aplicable en partes delgadas
+            - ❌ Más repeticiones por error técnico
+            """)
+        
+        # SNR simulation
+        st.markdown("---")
+        st.markdown("### 📊 Relación Señal-Ruido (SNR)")
+        
+        st.markdown("""
+        El ruido cuántico depende del número de fotones detectados.
+        """)
+        
+        # Calculate SNR (simplified)
+        # SNR proportional to sqrt(number of photons)
+        # Number of photons proportional to mAs
+        snr_value = np.sqrt(contrast_mAs * intensity1) / 10  # Normalized
+        
+        snr_col1, snr_col2 = st.columns([1, 2])
+        
+        with snr_col1:
+            st.metric(
+                "SNR Estimado",
+                f"{snr_value:.2f}",
+                help="Mayor SNR = Menos ruido, mejor calidad"
+            )
+            
+            if snr_value > 5:
+                st.success("🟢 SNR Excelente")
+            elif snr_value > 3:
+                st.info("🟡 SNR Adecuado")
+            else:
+                st.warning("🔴 SNR Bajo (imagen ruidosa)")
+        
+        with snr_col2:
+            st.markdown("""
+            **Para mejorar SNR**:
+            - ↑ mAs (más fotones)
+            - ↑ kVp (más fotones llegan al detector)
+            - Filtrado/procesado digital
+            
+            **Trade-off**: 
+            - Más mAs = Más dosis
+            - Más kVp = Menos contraste
+            """)
+        
+        # Optimization tool
+        st.markdown("---")
+        st.markdown("### 🎯 Optimización Técnica")
+        
+        st.markdown("Encuentra el balance óptimo entre contraste, dosis y calidad")
+        
+        optimize_col1, optimize_col2 = st.columns(2)
+        
+        with optimize_col1:
+            priority = st.radio(
+                "Prioridad",
+                ["Máximo Contraste", "Mínima Dosis", "Balance"],
+                index=2
+            )
+            
+        with optimize_col2:
+            part_thickness = st.slider("Espesor de la parte (cm)", 5, 40, 20)
+        
+        # Optimization recommendations
+        if priority == "Máximo Contraste":
+            if part_thickness < 12:
+                rec_kVp = 55
+                rec_mAs = 10
+                explanation = "Parte delgada: Bajo kVp factible para máximo contraste"
+            else:
+                rec_kVp = 70
+                rec_mAs = 30
+                explanation = "Parte gruesa: kVp mínimo necesario para penetración"
+        
+        elif priority == "Mínima Dosis":
+            if part_thickness < 12:
+                rec_kVp = 70
+                rec_mAs = 5
+                explanation = "Alto kVp, bajo mAs: Técnica de mínima dosis"
+            else:
+                rec_kVp = 90
+                rec_mAs = 10
+                explanation = "Alto kVp permite reducir mAs significativamente"
+        
+        else:  # Balance
+            if part_thickness < 12:
+                rec_kVp = 60
+                rec_mAs = 8
+                explanation = "Balance óptimo para parte delgada"
+            elif part_thickness < 25:
+                rec_kVp = 75
+                rec_mAs = 15
+                explanation = "Balance estándar: contraste adecuado y dosis razonable"
+            else:
+                rec_kVp = 85
+                rec_mAs = 25
+                explanation = "Parte gruesa: kVp suficiente, mAs compensatorio"
+        
+        st.success(f"""
+        ### 💡 Recomendación Optimizada
+        
+        **kVp**: {rec_kVp}
+        **mAs**: {rec_mAs}
+        
+        **Explicación**: {explanation}
+        """)
+        
+        # Compare current vs optimized
+        compare_col1, compare_col2 = st.columns(2)
+        
+        with compare_col1:
+            st.markdown("**Tu Técnica Actual**")
+            current_dose_index = contrast_kVp * contrast_mAs / 100
+            st.write(f"- kVp: {contrast_kVp}")
+            st.write(f"- mAs: {contrast_mAs}")
+            st.write(f"- Índice dosis: {current_dose_index:.1f}")
+            
+        with compare_col2:
+            st.markdown("**Técnica Optimizada**")
+            optimized_dose_index = rec_kVp * rec_mAs / 100
+            st.write(f"- kVp: {rec_kVp}")
+            st.write(f"- mAs: {rec_mAs}")
+            st.write(f"- Índice dosis: {optimized_dose_index:.1f}")
+            
+            dose_reduction = ((current_dose_index - optimized_dose_index) / current_dose_index * 100) if current_dose_index > 0 else 0
+            if dose_reduction > 0:
+                st.success(f"🎉 Reducción de dosis: {dose_reduction:.0f}%")
+            elif dose_reduction < -10:
+                st.warning(f"⚠️ Aumento de dosis: {abs(dose_reduction):.0f}%")
+        
+        # Theory expander
+        with st.expander("📚 Teoría: Contraste y Calidad de Imagen"):
+            st.markdown("""
+            ## 📈 Contraste Radiográfico: Fundamentos
+            
+            ### Definición de Contraste
+            
+            El contraste es la diferencia en la intensidad de radiación entre dos áreas adyacentes de la imagen.
+            """)
+            
+            st.latex(r"C = \frac{|I_1 - I_2|}{I_1 + I_2}")
+            
+            st.markdown("""
+            Donde:
+            - **I₁, I₂**: Intensidades de dos regiones
+            - **C**: Contraste (0 a 1, donde 1 = máximo contraste)
+            
+            ### Tipos de Contraste
+            
+            #### 1. Contraste de Sujeto (Subject Contrast)
+            
+            Depende de las **diferencias anatómicas** inherentes al paciente:
+            
+            **Factores**:
+            - **Número atómico efectivo (Z)**: Hueso (↑Z) vs tejido blando (↓Z)
+            - **Densidad física (ρ)**: Hueso (↑ρ) vs pulmón (↓ρ)
+            - **Espesor**: Estructuras gruesas vs delgadas
+            
+            **No podemos modificarlo** (es anatomía del paciente), pero podemos **optimizarlo** con técnica.
+            
+            #### 2. Contraste Radiográfico (Radiographic Contrast)
+            
+            El contraste en el **haz de rayos X emergente** del paciente.
+            
+            **Factores que lo afectan**:
+            - **kVp**: Factor más importante
+            - **Espesor del paciente**
+            - **Dispersión**: La reduce significativamente
+            - **Filtración del haz**
+            
+            #### 3. Contraste de la Imagen (Image Contrast)
+            
+            El contraste **visible en la imagen final**.
+            
+            **Factores adicionales**:
+            - Características del detector
+            - Procesado digital
+            - Ventanas (W/L) en imagen digital
+            - Calidad del monitor
+            
+            ### Factores que Afectan el Contraste
+            
+            #### 📉 kVp: El Factor Más Crítico
+            
+            **Relación inversa**: ↑ kVp → ↓ Contraste
+            
+            **Mecanismo físico**:
+            
+            A **bajo kVp** (50-70 keV):
+            - Domina efecto **fotoeléctrico** (∝ Z³)
+            - Gran diferencia entre tejidos de diferente Z
+            - **Máximo contraste**
+            - Pero: Poca penetración, alta dosis
+            
+            A **alto kVp** (>90 keV):
+            - Domina dispersión **Compton** (independiente de Z)
+            - Poca diferencia entre tejidos
+            - **Bajo contraste** (todo se ve gris)
+            - Pero: Buena penetración, baja dosis
+            
+            **Ejemplo práctico**:
+            - **Mamografía**: 25-30 kVp (máximo contraste en tejido blando)
+            - **Extremidades**: 50-60 kVp (alto contraste óseo)
+            - **Tórax**: 110-125 kVp (penetrar mediastino, sacrifica contraste)
+            - **Abdomen**: 70-80 kVp (balance)
+            
+            #### 🌫️ Dispersión: El Enemigo
+            
+            La radiación dispersa añade una "niebla" uniforme que **reduce el contraste**.
+            
+            **Efecto cuantitativo**:
+            """)
+            
+            st.latex(r"C_{\text{real}} = \frac{C_{\text{primaria}}}{1 + SPR}")
+            
+            st.markdown("""
+            Donde **SPR** = Scatter-to-Primary Ratio (ratio dispersión/primaria)
+            
+            **Ejemplos**:
+            - Extremidad: SPR = 0.3 → Contraste reducido 23%
+            - Abdomen sin rejilla: SPR = 5 → Contraste reducido 83% (!!)
+            - Abdomen con rejilla 10:1: SPR = 0.5 → Contraste reducido 33%
+            
+            **Por eso las rejillas son esenciales en partes gruesas.**
+            
+            #### 📏 Espesor del Paciente
+            
+            Mayor espesor → Más material → Más atenuación → Menos contraste
+            
+            Además: Mayor espesor → Más dispersión generada
+            
+            **Compensación**:
+            - Partes delgadas: Bajo kVp, alto contraste
+            - Partes gruesas: Alto kVp necesario (sacrifica contraste)
+            
+            ### Calidad de Imagen: Parámetros Objetivos
+            
+            #### 1. Resolución Espacial
+            
+            Capacidad de distinguir objetos pequeños cercanos.
+            
+            **Medida**: Pares de líneas por milímetro (pl/mm)
+            
+            **Factores limitantes**:
+            - Tamaño del foco (principal)
+            - Píxel del detector
+            - Movimiento del paciente
+            - Penumbra geométrica
+            
+            **Valores típicos**:
+            - Radiología digital: 2.5-5 pl/mm
+            - Mamografía digital: 8-12 pl/mm
+            - Radiología analógica (película): 10+ pl/mm
+            
+            #### 2. Resolución de Contraste
+            
+            Capacidad de distinguir diferencias pequeñas de densidad.
+            
+            **Factores**:
+            - Ruido de la imagen
+            - Contraste de sujeto
+            - Dispersión
+            - Procesado digital
+            
+            **Digital vs Analógica**:
+            - Digital: Mejor resolución de contraste (mayor rango dinámico)
+            - Analógica: Mejor resolución espacial
+            
+            #### 3. Ruido Cuántico
+            
+            Variación aleatoria en el número de fotones detectados.
+            
+            **Naturaleza**: Estadística de Poisson
+            """)
+            
+            st.latex(r"\sigma = \sqrt{N}")
+            
+            st.markdown("""
+            Donde N = número de fotones
+            
+            **Relación Señal-Ruido**:
+            """)
+            
+            st.latex(r"SNR = \frac{S}{\sigma} = \frac{N}{\sqrt{N}} = \sqrt{N}")
+            
+            st.markdown("""
+            **Conclusión**: SNR ∝ √(mAs)
+            
+            Para **duplicar el SNR** (reducir ruido a la mitad), necesitas **cuadruplicar el mAs**.
+            
+            **Implicación práctica**:
+            - Imagen ruidosa → ↑ mAs (pero ↑ dosis)
+            - Imagen muy ruidosa → Verificar detector, no solo ↑ mAs
+            
+            #### 4. Nitidez (Sharpness)
+            
+            Definición clara de bordes y estructuras.
+            
+            **Factores que reducen nitidez**:
+            - Movimiento (paciente, órganos)
+            - Penumbra geométrica (foco grande)
+            - Dispersión no eliminada
+            - Píxel grande del detector
+            
+            **Mejoras**:
+            - ✅ Foco pequeño
+            - ✅ Tiempo de exposición corto
+            - ✅ Inmovilización adecuada
+            - ✅ Distancia foco-detector grande
+            - ✅ Objeto pegado al detector
+            
+            ### Trade-offs en Radiología
+            
+            En radiología **todo es un compromiso**:
+            
+            #### Contraste vs Dosis
+            
+            | Objetivo | kVp | mAs | Resultado |
+            |----------|-----|-----|-----------|
+            | **Máximo contraste** | ↓↓ | ↑↑ | Alta dosis, aplicable solo en partes delgadas |
+            | **Mínima dosis** | ↑↑ | ↓↓ | Bajo contraste, compensar con procesado |
+            | **Balance** | Medio | Medio | Compromiso razonable |
+            
+            #### Contraste vs Penetración
+            
+            - Bajo kVp → Máximo contraste pero mala penetración
+            - Alto kVp → Buena penetración pero bajo contraste
+            - **Solución**: kVp óptimo según anatomía
+            
+            #### SNR vs Dosis
+            
+            - Más mAs → Mejor SNR (menos ruido)
+            - Más mAs → Más dosis al paciente
+            - **Solución**: mAs mínimo compatible con calidad diagnóstica
+            
+            #### Resolución vs Capacidad de Carga
+            
+            - Foco fino → Mejor resolución
+            - Foco fino → Baja capacidad térmica (mAs limitado)
+            - **Solución**: Foco fino solo para técnicas de bajo mAs
+            
+            ### Optimización Práctica
+            
+            #### Paso 1: Determinar kVp
+            
+            **Basado en anatomía**:
+            
+            | Anatomía | Espesor típico | kVp recomendado | Razón |
+            |----------|---------------|-----------------|-------|
+            | **Dedos/mano** | 2-5 cm | 50-55 | Detalle óseo, máximo contraste |
+            | **Muñeca/tobillo** | 5-8 cm | 55-60 | Balance contraste-penetración |
+            | **Rodilla** | 10-12 cm | 65-70 | Penetración suficiente |
+            | **Hombro/pelvis** | 15-20 cm | 70-80 | Partes densas |
+            | **Abdomen** | 20-30 cm | 70-80 | Contraste tejido blando |
+            | **Tórax PA** | 20-25 cm | 110-125 | Penetrar mediastino |
+            | **Columna lumbar LAT** | 30-40 cm | 90-100 | Máxima penetración |
+            
+            #### Paso 2: Calcular mAs
+            
+            **Fórmula empírica** (punto de partida):
+            """)
+            
+            st.latex(r"mAs = k \times \text{Espesor}^2")
+            
+            st.markdown("""
+            Donde k = constante según anatomía (determinar por experiencia/tablas)
+            
+            **Ajustar por**:
+            - Morfología del paciente (obeso → ↑ mAs)
+            - Uso de rejilla (con rejilla → ×Bucky factor)
+            - Distancia (si ≠100cm → ley inversa del cuadrado)
+            - Detector (algunos requieren más/menos)
+            
+            #### Paso 3: Verificar y Ajustar
+            
+            **En imagen digital**:
+            - Verificar índice de exposición (EI/DI)
+            - Objetivo: Dentro del rango óptimo
+            - Si fuera de rango → Ajustar técnica
+            
+            **Regla de oro ALARA**:
+            - Usar **mínimo mAs** que produzca calidad diagnóstica
+            - No sobreexponer "por si acaso"
+            - En digital, sobreexposición no se ve (¡pero la dosis sí!)
+            
+            ### Índices de Exposición en Digital
+            
+            Diferentes fabricantes usan diferentes métricas:
+            
+            #### Exposure Index (EI) - IEC Standard
+            
+            Valor objetivo: **Depende del detector y fabricante**
+            
+            **Interpretación**:
+            - EI correcto → Imagen óptima
+            - EI bajo → Subexposición (ruido excesivo)
+            - EI alto → Sobreexposición (dosis innecesaria)
+            
+            #### Deviation Index (DI)
+            
+            Desviación respecto al valor objetivo.
+            """)
+            
+            st.latex(r"DI = 10 \times \log_{10}\left(\frac{EI}{EI_{target}}\right)")
+            
+            st.markdown("""
+            **Interpretación**:
+            - **DI = 0**: Perfecto (EI = target)
+            - **DI = +1**: 25% sobreexposición
+            - **DI = +3**: 2× sobreexposición
+            - **DI = -1**: 20% subexposición
+            - **DI = -3**: 50% subexposición
+            
+            **Rango aceptable**: DI entre -1 y +1
+            
+            #### Fabricantes Específicos
+            
+            **Agfa**: Log of Median (lgM)
+            - Objetivo: ~2.5
+            - Rango: 1.9-2.8
+            
+            **Carestream**: Exposure Index (EI)
+            - Objetivo: ~2000
+            - Rango: 1800-2200
+            
+            **Fuji**: S value
+            - Objetivo: ~200
+            - ⚠️ **Inverso**: Menor S = más exposición
+            
+            **Philips**: Exposure Index (EI)
+            - Objetivo: ~400-600
+            
+            **Importante**: Consultar manual de tu equipo específico.
+            
+            ### Control de Calidad del Contraste
+            
+            #### Tests Periódicos
+            
+            **Test de penetrómetro (step wedge)**:
+            - Objeto con escalones de diferentes espesores
+            - Verificar que se distinguen todos los escalones
+            - Mide rango dinámico y contraste
+            
+            **Test de bajo contraste**:
+            - Phantom con objetos de diferente tamaño y contraste
+            - Verificar detectabilidad mínima
+            - Asegura capacidad de ver lesiones sutiles
+            
+            **Test de uniformidad**:
+            - Exposición de campo uniforme
+            - Verificar que no hay variaciones de densidad
+            - Detecta problemas de calibración
+            
+            ### Artefactos que Afectan al Contraste
+            
+            #### 1. Velo por Dispersión (Fog)
+            
+            **Causa**: Dispersión no eliminada
+            
+            **Efecto**: Reduce contraste globalmente
+            
+            **Solución**: 
+            - Rejilla adecuada
+            - Colimación estricta
+            - Evitar objetos dispersores cerca del detector
+            
+            #### 2. Artefactos de Procesado
+            
+            **Causa**: Algoritmos de mejora agresivos
+            
+            **Efecto**: 
+            - Halo alrededor de estructuras densas
+            - "Edge enhancement" excesivo
+            - Contraste artificial
+            
+            **Solución**: Ajustar parámetros de procesado
+            
+            #### 3. Saturación del Detector
+            
+            **Causa**: Sobreexposición extrema en zonas
+            
+            **Efecto**: Pérdida de información (área blanca sin detalle)
+            
+            **Solución**: 
+            - Compensar técnica
+            - Usar filtros compensadores
+            
+            ### Casos Especiales
+            
+            #### Pacientes Pediátricos
+            
+            **Consideraciones**:
+            - Menor espesor → Menos mAs
+            - Mayor contraste natural (menos grasa)
+            - Prioridad absoluta: **Mínima dosis**
+            
+            **Técnica**:
+            - kVp ligeramente menor (mejor contraste)
+            - mAs mínimo (↑ ruido aceptable vs dosis)
+            - Tiempo mínimo (evitar movimiento)
+            
+            #### Pacientes Obesos
+            
+            **Problemas**:
+            - Gran espesor → Necesita penetración
+            - Mucha dispersión → Reduce contraste
+            - Mayor dosis inevitable
+            
+            **Técnica**:
+            - ↑ kVp significativamente (90-100+)
+            - ↑ mAs proporcionalmente
+            - Rejilla obligatoria (ratio alto: 12:1-16:1)
+            - Considerar proyecciones alternativas
+            
+            #### Estudios con Contraste Artificial
+            
+            **Bario (Ba, Z=56)** o **Yodo (I, Z=53)**:
+            - Alto Z → Máxima atenuación
+            - Excelente contraste natural
+            - Permite kVp más bajo
+            
+            **Optimización**:
+            - kVp justo por encima de K-edge del contraste
+            - Ba: K-edge = 37 keV → Usar ~70-80 kVp
+            - I: K-edge = 33 keV → Usar ~60-70 kVp
+            - Maximiza absorción fotoeléctrica del contraste
+            
+            ### Herramientas Digitales de Mejora
+            
+            #### Post-procesado
+            
+            **Ventanas (Windowing)**:
+            - W/L = Window/Level
+            - Ajusta contraste y brillo sin reexposición
+            - Permite "recuperar" imágenes de bajo contraste
+            
+            **Ecualización de histograma**:
+            - Redistribuye niveles de gris
+            - Mejora visualización de regiones específicas
+            
+            **Filtros de realce de bordes**:
+            - Mejora percepción de estructuras pequeñas
+            - Complementa (no sustituye) técnica correcta
+            
+            #### Limitaciones del Post-procesado
+            
+            **No puede**:
+            - Eliminar ruido cuántico (información no está)
+            - Recuperar estructuras saturadas
+            - Compensar movimiento
+            - Crear información que no fue captada
+            
+            **Puede**:
+            - Optimizar visualización de información existente
+            - Ajustar contraste y brillo
+            - Reducir artefactos menores
+            - Mejorar percepción visual
+            
+            ### Conclusión: El Arte del Balance
+            
+            La radiología diagnóstica es encontrar el **punto óptimo** entre:
+            
+            1. ✅ **Calidad diagnóstica suficiente** (no perfecta, suficiente)
+            2. ✅ **Dosis mínima razonable** (ALARA)
+            3. ✅ **Eficiencia clínica** (no repeticiones)
+            4. ✅ **Comodidad del paciente** (tiempo, posicionamiento)
+            
+            **No existe "la técnica perfecta"** - existe la técnica **apropiada para cada situación**.
+            
+            Tu trabajo como TSID es **dominar estos principios** para tomar decisiones 
+            informadas caso por caso, siempre priorizando:
+            
+            🎯 **Calidad diagnóstica + Protección radiológica**
+            """)
+    
+    # Final section summary
+    st.markdown("---")
+    st.success("""
+    ### 🎯 Puntos Clave - Formación de Imagen
+    
+    1. **Tres interacciones**: Fotoeléctrico (contraste), Compton (dispersión), Coherente (menor)
+    2. **Beer-Lambert**: I = I₀ × e^(-μx) - Atenuación exponencial
+    3. **Contraste**: Depende de ΔZ, Δρ, espesor, y kVp
+    4. **↑ kVp → ↓ Contraste** pero ↑ penetración y ↓ dosis
+    5. **Dispersión**: Principal enemigo del contraste (niebla)
+    6. **Rejillas**: Eliminan dispersión pero ↑ dosis (Factor Bucky)
+    7. **Ratio rejilla**: Mayor ratio = más selectiva pero más dosis
+    8. **SNR ∝ √mAs**: Duplicar SNR requiere 4× mAs
+    9. **Optimización**: Balance entre contraste, dosis y calidad
+    10. **ALARA siempre**: Mínima dosis compatible con calidad diagnóstica
+    """)
+    
+    # Pro tips for this tab
+    st.info("""
+    ### 💡 Consejos Profesionales - Formación de Imagen
+    
+    **Para maximizar contraste**:
+    - 🎯 Usa el kVp más bajo que permita la penetración
+    - 🔍 Colima estrictamente (menos volumen = menos dispersión)
+    - 🛡️ Usa rejilla en partes >10-12 cm
+    - 📏 Comprime suavemente si es posible (reduce espesor)
+    
+    **Para minimizar dosis manteniendo calidad**:
+    - ⚡ Aplica regla del 15% (↑kVp 15% = ½ mAs)
+    - 📊 Verifica índices de exposición (EI/DI)
+    - 🎯 No sobreexpongas "por si acaso"
+    - 📱 Usa AEC cuando disponible
+    
+    **Para reducir dispersión**:
+    - ✂️ Colimación al mínimo necesario
+    - 📏 Usa rejilla apropiada (ratio según espesor)
+    - 🔄 Considera air gap en lateral de C-spine
+    - 🎯 Elimina objetos innecesarios del campo
+    
+    **Para mejorar calidad general**:
+    - 👤 Posicionamiento correcto (primera vez)
+    - ⏱️ Tiempo mínimo (evita movimiento)
+    - 📍 Parte pegada al detector (↓ penumbra)
+    - 🎚️ Usa foco fino si mAs lo permite
+    """)
+    
+    # Footer for this tab
+    st.markdown("---")
+    st.markdown("""
+    <div style='text-align: center; color: #666; font-size: 0.9em;'>
+        <p>🎯 <strong>Tab 2: Formación de Imagen</strong> | 
+        Simulador de Física Radiológica | 
+        Formación Profesional en Imagen para el Diagnóstico</p>
+        <p>Experimenta con diferentes tejidos y parámetros para entender cómo se forma la imagen radiográfica</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================
+# TAB 3: PROTECCIÓN RADIOLÓGICA (to be completed)
+# ============================================
+with tabs[2]:
+    st.header("🛡️ Protección Radiológica")
     st.info("⚠️ Esta sección está en desarrollo. Será completada en la siguiente iteración.")
     st.markdown("""
     ### Próximamente en esta sección:
     
-    - **Interacción de rayos X con la materia**: Efecto fotoeléctrico, Compton, dispersión
-    - **Ley de Beer-Lambert**: Atenuación exponencial
-    - **Contraste radiográfico**: Diferencias de densidad y número atómico
-    - **Dispersión**: Rejillas anti-difusión
-    - **Simulador de phantom**: Construye tu propio paciente virtual
-    - **Factor de exposición**: Cálculo para diferentes anatomías
+    - **Principios ALARA**: Tiempo, Distancia, Blindaje (interactivo)
+    - **Cálculo de dosis**: Paciente, profesional, público
+    - **Límites legales**: Trabajadores, embarazo, público
+    - **Dosimetría personal**: TLD, OSL, interpretación
+    - **Blindajes**: Cálculo de espesores de plomo/hormigón
+    - **Simulador de sala**: Diseño de instalaciones
+    - **Niveles de referencia diagnósticos (DRL)**
     
     Continúa con las otras pestañas disponibles...
     """)
+
+# ============================================
+# TAB 4: PARÁMETROS TÉCNICOS (to be completed)
+# ============================================
+with tabs[3]:
+    st.header("🔧 Parámetros Técnicos y Optimización")
+    st.info("⚠️ Esta sección está en desarrollo. Será completada en la siguiente iteración.")
+    st.markdown("""
+    ### Próximamente en esta sección:
+    
+    - **Tabla de técnicas**: Por anatomía y proyección
+    - **Calculadora de conversión**: kVp-mAs, distancia, grid
+    - **Factor de exposición**: Ajustes por morfología
+    - **Rejillas anti-difusión**: Ratios, frecuencia, tipos
+    - **AEC (Control automático)**: Selección de cámaras
+    - **Calidad de imagen**: SNR, CNR, resolución espacial
+    
+    Continúa con las otras pestañas disponibles...
+    """)
+
+# ============================================
+# TAB 5: CALIDAD DE IMAGEN (to be completed)
+# ============================================
+with tabs[4]:
+    st.header("📊 Calidad de Imagen")
+    st.info("⚠️ Esta sección está en desarrollo. Será completada en la siguiente iteración.")
+    st.markdown("""
+    ### Próximamente en esta sección:
+    
+    - **Contraste**: Alto contraste vs bajo contraste
+    - **Resolución espacial**: MTF, pares de líneas
+    - **Ruido**: Cuántico, electrónico, estructurado
+    - **Relación señal-ruido (SNR)**
+    - **Artefactos**: Identificación y solución
+    - **Métricas de calidad**: DQE, NEQ
+    - **Balance dosis-calidad**: Curvas ROC
+    
+    Continúa con las otras pestañas disponibles...
+    """)
+
+# ============================================
+# TAB 6: CASOS CLÍNICOS (to be completed)
+# ============================================
+with tabs[5]:
+    st.header("🏥 Casos Clínicos Prácticos")
+    st.info("⚠️ Esta sección está en desarrollo. Será completada en la siguiente iteración.")
+    st.markdown("""
+    ### Próximamente en esta sección:
+    
+    **Casos interactivos donde deberás**:
+    - Seleccionar parámetros técnicos apropiados
+    - Resolver problemas de calidad de imagen
+    - Optimizar dosis manteniendo calidad diagnóstica
+    - Adaptar técnicas a pacientes especiales
+    - Identificar y corregir artefactos
+    - Aplicar principios ALARA en situaciones reales
+    
+    **Escenarios incluirán**:
+    - 👶 Radiografía pediátrica (tórax, abdomen)
+    - 🦴 Trauma (extremidades, cráneo)
+    - 🫁 Tórax en diferentes condiciones (obesidad, neumotórax)
+    - 🤰 Paciente embarazada (consideraciones especiales)
+    - 🏥 Portátiles en UCI
+    - 🔧 Resolución de problemas técnicos
+    
+    Continúa con las otras pestañas disponibles...
+    """)
+
+# ============================================
+# GLOBAL FOOTER
+# ============================================
+st.markdown("---")
+st.markdown("---")
+
+# About and credits
+footer_col1, footer_col2, footer_col3 = st.columns(3)
+
+with footer_col1:
+    st.markdown("""
+    ### 📚 Recursos
+    
+    - [CSN - Consejo de Seguridad Nuclear](https://www.csn.es)
+    - [SEFM - Sociedad Española de Física Médica](https://www.sefm.es)
+    - [SEPR - Sociedad Española de Protección Radiológica](https://www.sepr.es)
+    """)
+
+with footer_col2:
+    st.markdown("""
+    ### ⚖️ Normativa
+    
+    - Real Decreto 1085/2009
+    - Real Decreto 783/2001
+    - Directiva 2013/59/EURATOM
+    """)
+
+with footer_col3:
+    st.markdown("""
+    ### 🎓 Formación
+    
+    - Ciclo FP: TSID
+    - Módulo: Imagen para el Diagnóstico
+    - Contenido: Física aplicada
+    """)
+
+st.markdown("---")
+
+st.markdown("""
+<div style='text-align: center; color: #666; padding: 20px;'>
+    <p><strong>⚡ Física de Imagen Radiológica - Simulador Interactivo</strong></p>
+    <p>Herramienta educativa para Técnicos Superiores en Imagen para el Diagnóstico</p>
+    <p style='font-size: 0.85em; margin-top: 10px;'>
+        ⚠️ <strong>Disclaimer</strong>: Este simulador es una herramienta educativa. 
+        En la práctica clínica real, siempre sigue los protocolos establecidos por tu centro 
+        y la normativa vigente. Los valores y cálculos son aproximaciones simplificadas 
+        con fines didácticos.
+    </p>
+    <p style='font-size: 0.8em; margin-top: 10px; color: #999;'>
+        Versión 1.0 | 2024 | Basado en normativa española y europea vigente
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 # ============================================
 # TAB 3: PROTECCIÓN RADIOLÓGICA (to be completed)
