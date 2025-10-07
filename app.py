@@ -454,7 +454,7 @@ with tabs[0]:
         showlegend=True
     )
     
-    fig_spectrum.update_xaxis(range=[0, min(150, kVp + 20)])
+    fig_spectrum.update_xaxes(range=[0, min(150, kVp + 20)])
     
     st.plotly_chart(fig_spectrum, use_container_width=True)
     
