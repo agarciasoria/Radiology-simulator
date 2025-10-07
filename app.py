@@ -251,6 +251,136 @@ def calculate_grid_transmission(grid_ratio, grid_frequency, is_scatter=False):
     
     return transmission
 
+# ---------- Utilities for Radiation Protection (Tab 3) ----------
+
+def calculate_dose_at_distance(dose_at_reference, distance_reference, distance_target):
+    """
+    Inverse square law for dose calculation
+    """
+    dose_target = dose_at_reference * (distance_reference / distance_target) ** 2
+    return dose_target
+
+def calculate_transmission_through_shielding(hvl_mm, thickness_mm):
+    """
+    Calculate transmission through shielding material using HVL
+    """
+    n_hvls = thickness_mm / hvl_mm
+    transmission = 0.5 ** n_hvls
+    return transmission
+
+def get_hvl_for_material(material, kVp):
+    """
+    Get HVL for different shielding materials at different kVp
+    Simplified empirical relationships
+    """
+    hvl_data = {
+        "Plomo": {
+            60: 0.15,
+            80: 0.25,
+            100: 0.35,
+            120: 0.45,
+            150: 0.60
+        },
+        "Hormigón": {
+            60: 10,
+            80: 12,
+            100: 14,
+            120: 16,
+            150: 18
+        },
+        "Vidrio plomado": {
+            60: 0.20,
+            80: 0.30,
+            100: 0.42,
+            120: 0.55,
+            150: 0.70
+        },
+        "Acero": {
+            60: 0.50,
+            80: 0.70,
+            100: 1.00,
+            120: 1.30,
+            150: 1.60
+        }
+    }
+    
+    # Interpolate if exact kVp not in table
+    if material in hvl_data:
+        kVps = sorted(hvl_data[material].keys())
+        hvls = [hvl_data[material][k] for k in kVps]
+        hvl = np.interp(kVp, kVps, hvls)
+        return hvl
+    return 1.0  # Default
+
+def calculate_shielding_thickness(initial_dose_mSv_week, target_dose_mSv_week, hvl_mm):
+    """
+    Calculate required shielding thickness to achieve target dose
+    """
+    if target_dose_mSv_week >= initial_dose_mSv_week:
+        return 0
+    
+    attenuation_needed = target_dose_mSv_week / initial_dose_mSv_week
+    n_hvls = -np.log2(attenuation_needed)
+    thickness_mm = n_hvls * hvl_mm
+    return thickness_mm
+
+def calculate_workload(patients_per_day, mAs_per_patient, days_per_week):
+    """
+    Calculate weekly workload in mA·min
+    """
+    total_mAs = patients_per_day * mAs_per_patient * days_per_week
+    workload_mAmin = total_mAs / 60  # Convert to mA·min
+    return workload_mAmin
+
+def calculate_tenth_value_layer(hvl_mm):
+    """
+    Tenth Value Layer (TVL) - thickness that reduces to 10%
+    TVL ≈ 3.32 × HVL
+    """
+    tvl = 3.32 * hvl_mm
+    return tvl
+
+# Dose limit constants (Spain/EU)
+DOSE_LIMITS = {
+    "Trabajador_expuesto": {
+        "anual": 20,  # mSv/year (averaged over 5 years)
+        "5_años": 100,  # mSv in 5 years
+        "cristalino": 20,  # mSv/year (new limit)
+        "piel": 500,  # mSv/year
+        "extremidades": 500  # mSv/year
+    },
+    "Embarazada": {
+        "superficie_abdomen": 2,  # mSv durante embarazo
+        "feto": 1  # mSv durante embarazo
+    },
+    "Publico": {
+        "anual": 1,  # mSv/year
+        "cristalino": 15,  # mSv/year
+        "piel": 50  # mSv/year
+    },
+    "Aprendiz_16-18": {
+        "anual": 6,  # mSv/year
+        "cristalino": 20,
+        "piel": 150,
+        "extremidades": 150
+    }
+}
+
+# Typical organ doses for common procedures (mGy)
+ORGAN_DOSES = {
+    "Tórax PA": {"entrada": 0.2, "efectiva": 0.02},
+    "Tórax LAT": {"entrada": 0.4, "efectiva": 0.04},
+    "Abdomen AP": {"entrada": 4.0, "efectiva": 0.7},
+    "Pelvis AP": {"entrada": 3.0, "efectiva": 0.6},
+    "Columna Lumbar AP": {"entrada": 4.0, "efectiva": 0.7},
+    "Columna Lumbar LAT": {"entrada": 8.0, "efectiva": 1.3},
+    "Cráneo AP": {"entrada": 2.0, "efectiva": 0.05},
+    "Mamografía (2 proyecciones)": {"entrada": 3.0, "efectiva": 0.4},
+    "TC Tórax": {"CTDI": 8.0, "efectiva": 7.0},
+    "TC Abdomen": {"CTDI": 10.0, "efectiva": 10.0},
+    "TC Cráneo": {"CTDI": 60.0, "efectiva": 2.0}
+}
+
 # ---------- Page setup ----------
 st.set_page_config(
     page_title="Física de Imagen Radiológica", 
