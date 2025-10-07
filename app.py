@@ -4477,24 +4477,3378 @@ with tabs[1]:
     """, unsafe_allow_html=True)
 
 # ============================================
-# TAB 3: PROTECCIÓN RADIOLÓGICA (to be completed)
+# TAB 3: PROTECCIÓN RADIOLÓGICA
 # ============================================
 with tabs[2]:
     st.header("🛡️ Protección Radiológica")
-    st.info("⚠️ Esta sección está en desarrollo. Será completada en la siguiente iteración.")
     st.markdown("""
-    ### Próximamente en esta sección:
-    
-    - **Principios ALARA**: Tiempo, Distancia, Blindaje (interactivo)
-    - **Cálculo de dosis**: Paciente, profesional, público
-    - **Límites legales**: Trabajadores, embarazo, público
-    - **Dosimetría personal**: TLD, OSL, interpretación
-    - **Blindajes**: Cálculo de espesores de plomo/hormigón
-    - **Simulador de sala**: Diseño de instalaciones
-    - **Niveles de referencia diagnósticos (DRL)**
-    
-    Continúa con las otras pestañas disponibles...
+    La protección radiológica es **fundamental** en tu práctica diaria. Aprende a aplicar 
+    los principios ALARA, calcular dosis, y diseñar estrategias de protección efectivas.
     """)
+    
+    st.markdown("---")
+    
+    # Section selector
+    protection_section = st.radio(
+        "Selecciona el tema:",
+        [
+            "⏱️ Principios ALARA",
+            "📊 Límites y Dosimetría",
+            "🧱 Cálculo de Blindajes",
+            "🏥 Diseño de Instalaciones",
+            "📈 Niveles de Referencia (DRL)"
+        ],
+        horizontal=False
+    )
+    
+    # ============================================
+    # SECTION 1: ALARA PRINCIPLES
+    # ============================================
+    if protection_section == "⏱️ Principios ALARA":
+        st.subheader("⏱️ Principios ALARA: As Low As Reasonably Achievable")
+        
+        st.info("""
+        **ALARA** = **T**an **B**ajo **C**omo **R**azonablemente **P**osible
+        
+        Los tres pilares de la protección radiológica:
+        1. ⏱️ **TIEMPO**: Minimizar tiempo de exposición
+        2. 📏 **DISTANCIA**: Maximizar distancia a la fuente
+        3. 🧱 **BLINDAJE**: Interponer material protector
+        """)
+        
+        st.markdown("---")
+        
+        # Interactive ALARA demonstration
+        st.markdown("### 🎯 Simulador Interactivo ALARA")
+        
+        # Input parameters
+        alara_col1, alara_col2, alara_col3 = st.columns(3)
+        
+        with alara_col1:
+            st.markdown("#### ⏱️ Factor 1: TIEMPO")
+            exposure_time_s = st.slider(
+                "Tiempo de exposición (segundos)",
+                0.01, 10.0, 0.1, 0.01,
+                help="Tiempo que el técnico está expuesto a radiación dispersa"
+            )
+            num_procedures = st.number_input(
+                "Procedimientos por día",
+                1, 50, 10,
+                help="Número de exposiciones realizadas"
+            )
+            
+        with alara_col2:
+            st.markdown("#### 📏 Factor 2: DISTANCIA")
+            distance_m = st.slider(
+                "Distancia a la fuente (metros)",
+                0.5, 5.0, 2.0, 0.1,
+                help="Distancia entre el punto de dispersión y el técnico"
+            )
+            dose_rate_at_1m = st.number_input(
+                "Tasa de dosis a 1m (µSv/h)",
+                1.0, 1000.0, 100.0,
+                help="Tasa de dosis dispersa a 1 metro del paciente"
+            )
+            
+        with alara_col3:
+            st.markdown("#### 🧱 Factor 3: BLINDAJE")
+            use_shielding = st.checkbox("Usar protección", value=True)
+            if use_shielding:
+                shielding_type = st.selectbox(
+                    "Tipo de protección",
+                    ["Delantal 0.25mm Pb", "Delantal 0.5mm Pb", "Biombo 2mm Pb", "Mampara plomada"]
+                )
+                # Attenuation factors
+                shielding_factors = {
+                    "Delantal 0.25mm Pb": 0.10,  # 90% reduction
+                    "Delantal 0.5mm Pb": 0.01,   # 99% reduction
+                    "Biombo 2mm Pb": 0.001,      # 99.9% reduction
+                    "Mampara plomada": 0.0001    # 99.99% reduction
+                }
+                shielding_transmission = shielding_factors[shielding_type]
+            else:
+                shielding_transmission = 1.0
+                shielding_type = "Ninguna"
+        
+        # Calculate doses
+        # Time factor
+        total_time_h = (exposure_time_s * num_procedures) / 3600
+        
+        # Distance factor (inverse square law)
+        dose_rate_at_distance = calculate_dose_at_distance(dose_rate_at_1m, 1.0, distance_m)
+        
+        # Combined dose
+        dose_per_day_no_shield = dose_rate_at_distance * total_time_h
+        dose_per_day_with_shield = dose_per_day_no_shield * shielding_transmission
+        
+        # Annual projection (250 working days)
+        dose_per_year_no_shield = dose_per_day_no_shield * 250
+        dose_per_year_with_shield = dose_per_day_with_shield * 250
+        
+        # Display results
+        st.markdown("---")
+        st.markdown("### 📊 Resultados de la Simulación")
+        
+        results_col1, results_col2, results_col3, results_col4 = st.columns(4)
+        
+        with results_col1:
+            st.metric(
+                "Dosis Diaria (sin protección)",
+                f"{dose_per_day_no_shield:.2f} µSv",
+                help="Dosis que recibirías sin ninguna protección"
+            )
+            
+        with results_col2:
+            st.metric(
+                "Dosis Diaria (con protección)",
+                f"{dose_per_day_with_shield:.3f} µSv",
+                delta=f"-{(1-shielding_transmission)*100:.1f}%",
+                delta_color="inverse",
+                help="Dosis con las medidas de protección seleccionadas"
+            )
+            
+        with results_col3:
+            st.metric(
+                "Proyección Anual (sin protección)",
+                f"{dose_per_year_no_shield/1000:.2f} mSv",
+                help="Extrapolación a 250 días laborables"
+            )
+            
+        with results_col4:
+            limit_percentage = (dose_per_year_with_shield/1000) / 20 * 100
+            st.metric(
+                "% del Límite Anual",
+                f"{limit_percentage:.2f}%",
+                help="Porcentaje del límite de 20 mSv/año para trabajadores"
+            )
+        
+        # Visual comparison
+        st.markdown("### 📈 Impacto de Cada Factor ALARA")
+        
+        # Calculate scenarios
+        scenarios = {
+            "Sin protección": dose_per_day_no_shield,
+            "Solo Tiempo (50%)": dose_per_day_no_shield * 0.5,
+            "Solo Distancia (×2)": calculate_dose_at_distance(dose_rate_at_1m, 1.0, distance_m*2) * total_time_h,
+            "Solo Blindaje": dose_per_day_no_shield * shielding_transmission,
+            "Combinado (actual)": dose_per_day_with_shield
+        }
+        
+        fig_alara = go.Figure()
+        
+        colors_alara = ['red', 'orange', 'yellow', 'lightgreen', 'green']
+        
+        fig_alara.add_trace(go.Bar(
+            x=list(scenarios.keys()),
+            y=list(scenarios.values()),
+            marker=dict(color=colors_alara),
+            text=[f"{v:.2f} µSv" for v in scenarios.values()],
+            textposition='auto'
+        ))
+        
+        fig_alara.update_layout(
+            title="Comparación de Estrategias de Protección",
+            yaxis_title="Dosis Diaria (µSv)",
+            height=450,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig_alara, use_container_width=True)
+        
+        # Recommendations
+        st.markdown("---")
+        st.markdown("### 💡 Recomendaciones Personalizadas")
+        
+        if limit_percentage < 10:
+            st.success(f"""
+            ✅ **Excelente**: Tu dosis proyectada es solo el {limit_percentage:.1f}% del límite legal.
+            
+            Tus medidas de protección son muy efectivas. Continúa con estas buenas prácticas.
+            """)
+        elif limit_percentage < 50:
+            st.info(f"""
+            ℹ️ **Adecuado**: Tu dosis proyectada es el {limit_percentage:.1f}% del límite legal.
+            
+            Dentro de rangos aceptables, pero siempre busca optimizar siguiendo ALARA.
+            """)
+        else:
+            st.warning(f"""
+            ⚠️ **Atención**: Tu dosis proyectada es el {limit_percentage:.1f}% del límite legal.
+            
+            Considera mejorar tus medidas de protección:
+            - Aumenta la distancia cuando sea posible
+            - Verifica que usas blindaje adecuado
+            - Minimiza tiempo de exposición
+            - Consulta con tu supervisor de protección radiológica
+            """)
+        
+        # Practical tips by modality
+        st.markdown("---")
+        st.markdown("### 🏥 Consejos Prácticos por Modalidad")
+        
+        modality_tips = st.selectbox(
+            "Selecciona modalidad",
+            ["Radiografía Convencional", "Radiografía Portátil", "Fluoroscopia", "TC", "Intervencionismo"]
+        )
+        
+        tips_dict = {
+            "Radiografía Convencional": """
+            **⏱️ Tiempo**:
+            - Sal de la sala durante la exposición
+            - Si debes permanecer (pediatría, paciente no colaborador): mínimo tiempo necesario
+            - Nunca sujetes al paciente durante la exposición
+            
+            **📏 Distancia**:
+            - Mínimo 2 metros del tubo y paciente
+            - Usa el biombo plomado de la sala de control
+            - En sala: sitúate lo más lejos posible (esquina opuesta)
+            
+            **🧱 Blindaje**:
+            - Biombo plomado obligatorio
+            - Si estás en sala: delantal 0.5mm Pb eq mínimo
+            - Protección tiroidea si exposiciones frecuentes
+            - Gafas plomadas para proteger cristalino (nueva normativa)
+            """,
+            
+            "Radiografía Portátil": """
+            **⏱️ Tiempo**:
+            - Minimiza número de exposiciones (técnica correcta primera vez)
+            - No permanezcas en habitación más tiempo del necesario
+            
+            **📏 Distancia**:
+            - ⚠️ **CRÍTICO**: Mínimo 2 metros del tubo (idealmente 3m)
+            - NUNCA sujetes el chasis/detector durante exposición
+            - Sal de habitación si es posible
+            - Distancia es tu MEJOR protección en portátiles
+            
+            **🧱 Blindaje**:
+            - Delantal plomado 0.5mm Pb eq OBLIGATORIO
+            - Protección tiroidea obligatoria
+            - Si hay otros pacientes: biombo portátil entre ellos y el equipo
+            - Advertir a personal de la habitación
+            
+            **⚠️ ESPECIAL ATENCIÓN**:
+            - Radiografía portátil = Mayor exposición ocupacional
+            - Dispersión en todas direcciones (sin blindaje de sala)
+            - Cumplir estrictamente protocolos de distancia
+            """,
+            
+            "Fluoroscopia": """
+            **⏱️ Tiempo**:
+            - Modo pulsado en lugar de continuo (reduce dosis 50-90%)
+            - Última imagen guardada (LIH) en lugar de fluoro continua
+            - Mínimo tiempo de fluoro necesario
+            - Monitorizar tiempo acumulado
+            
+            **📏 Distancia**:
+            - Máxima distancia compatible con el procedimiento
+            - No acercar cara al campo (dispersión máxima cerca del paciente)
+            - Bajo mesa mejor que sobre mesa (menos dispersión)
+            
+            **🧱 Blindaje**:
+            - Delantal 0.5mm Pb eq obligatorio (considerar 0.25 adicional frontal)
+            - Protección tiroidea obligatoria
+            - Gafas plomadas OBLIGATORIAS (protección cristalino - límite reducido)
+            - Faldones plomados de la mesa (uso correcto)
+            - Mamparas suspendidas
+            
+            **⚠️ ALTO RIESGO**:
+            - Fluoroscopia = Mayor exposición ocupacional en radiología
+            - Dosímetro adicional sobre delantal recomendado
+            - Control dosimétrico estricto
+            """,
+            
+            "TC": """
+            **⏱️ Tiempo**:
+            - Estar en sala solo durante posicionamiento (sin emisión RX)
+            - Salir ANTES de iniciar escaneo
+            - Monitorización desde sala de control
+            
+            **📏 Distancia**:
+            - Sala de control con biombo plomado
+            - Si debes entrar durante escaneo (emergencia): rápido y con protección
+            
+            **🧱 Blindaje**:
+            - Biombo de sala de control (vidrio plomado)
+            - Delantal si excepcionalmente debes estar en sala
+            - Verificar indicadores de emisión (luces de aviso)
+            
+            **✅ BAJO RIESGO**:
+            - TC bien protegido (túnel colimado, sala blindada)
+            - Exposición ocupacional mínima si sigues protocolo
+            - Dispersión muy baja fuera del gantry
+            """,
+            
+            "Intervencionismo": """
+            **⏱️ Tiempo**:
+            - Procedimientos largos: rotación de personal si posible
+            - Modo pulsado (fluoro) cuando sea factible
+            - Minimizar tiempo con RX activo
+            
+            **📏 Distancia**:
+            - Máxima distancia del tubo compatible con rol
+            - Lado del detector si posible (menos dispersión)
+            - Nunca directamente en línea del haz primario
+            
+            **🧱 Blindaje**:
+            - Delantal doble capa (0.5mm frontal + 0.25mm posterior)
+            - Protección tiroidea obligatoria
+            - Gafas plomadas obligatorias
+            - Guantes plomados si manos cerca del campo
+            - Mamparas móviles posicionadas correctamente
+            - Faldones bajo mesa
+            
+            **⚠️ MÁXIMO RIESGO**:
+            - Intervencionismo = Más alta exposición ocupacional
+            - Dosímetro de anillo (extremidades)
+            - Dosímetro adicional sobre delantal
+            - Control dosimétrico mensual recomendado
+            - Formación específica obligatoria
+            """
+        }
+        
+        st.info(tips_dict[modality_tips])
+        
+        # ALARA checklist
+        st.markdown("---")
+        st.markdown("### ✅ Checklist ALARA Pre-Exposición")
+        
+        check_col1, check_col2 = st.columns(2)
+        
+        with check_col1:
+            st.markdown("""
+            **Antes de cada exposición verifica**:
+            
+            ☑️ ¿La exploración está justificada?
+            
+            ☑️ ¿He optimizado parámetros técnicos? (kVp/mAs)
+            
+            ☑️ ¿He colimado al mínimo necesario?
+            
+            ☑️ ¿He usado protecciones al paciente? (gonadal si aplica)
+            
+            ☑️ ¿Estoy a distancia segura? (≥2m)
+            
+            ☑️ ¿Llevo dosímetro personal?
+            
+            ☑️ ¿Uso protección si debo estar en sala?
+            """)
+            
+        with check_col2:
+            st.markdown("""
+            **Para el paciente**:
+            
+            ☑️ ¿He explicado el procedimiento?
+            
+            ☑️ ¿He verificado posible embarazo? (mujeres 10-50 años)
+            
+            ☑️ ¿He registrado datos para trazabilidad?
+            
+            ☑️ ¿Posicionamiento correcto primera vez?
+            
+            ☑️ ¿Inmovilización adecuada? (evitar repetición)
+            
+            ☑️ ¿He retirado objetos radiopacos innecesarios?
+            
+            ☑️ ¿He informado de resultados/seguimiento?
+            """)
+        
+        # Theory expander
+        with st.expander("📚 Teoría: Fundamentos de Protección Radiológica"):
+            st.markdown("""
+            ## 🛡️ Bases Científicas de la Protección Radiológica
+            
+            ### Efectos Biológicos de las Radiaciones Ionizantes
+            
+            #### Mecanismos de Daño
+            
+            **Ionización directa**:
+            - RX ioniza moléculas biológicas (especialmente ADN)
+            - Ruptura de enlaces químicos
+            - Daño directo a estructuras celulares
+            
+            **Ionización indirecta** (70% del daño):
+            - RX ioniza agua → Radicales libres (OH·, H·)
+            - Radicales atacan moléculas biológicas
+            - Daño oxidativo
+            
+            #### Tipos de Efectos
+            
+            **1. Efectos Deterministas (antes "no estocásticos")**:
+            
+            Características:
+            - **Umbral de dosis**: No ocurren por debajo de cierta dosis
+            - **Severidad proporcional a dosis**: Mayor dosis → Mayor efecto
+            - **Predecibles**: Ocurren en todos los expuestos por encima del umbral
+            - **Corto plazo**: Días a semanas
+            
+            Ejemplos:
+            - Eritema cutáneo: Umbral ~2 Gy
+            - Depilación temporal: ~3 Gy
+            - Síndrome agudo radiación: >1 Gy cuerpo entero
+            - Cataratas: >0.5 Gy (acumulado)
+            - Esterilidad temporal: 0.15 Gy
+            
+            **En diagnóstico**: Dosis muy por debajo de umbrales (excepto intervencionismo prolongado)
+            
+            **2. Efectos Estocásticos** (probabilísticos):
+            
+            Características:
+            - **Sin umbral**: Cualquier dosis implica riesgo (por pequeña que sea)
+            - **Probabilidad proporcional a dosis**: Mayor dosis → Mayor probabilidad
+            - **Severidad independiente de dosis**: Si ocurre, gravedad no depende de dosis
+            - **Largo plazo**: Años a décadas
+            - **No predecibles individualmente**: Cuestión de probabilidad
+            
+            Ejemplos:
+            - **Cáncer inducido por radiación**
+            - **Efectos genéticos** (mutaciones heredables)
+            
+            **Modelo LNT** (Linear No-Threshold):
+            - Asunción conservadora: No hay dosis segura
+            - Relación lineal dosis-riesgo
+            - Base de los límites de dosis actuales
+            
+            ### Principios de Protección Radiológica (ICRP 103)
+            
+            #### 1. Justificación
+            
+            **Definición**: Toda exposición debe estar justificada - beneficio > riesgo
+            
+            **En diagnóstico**:
+            - Responsabilidad del **médico prescriptor**
+            - Debe existir indicación clínica clara
+            - Considerar alternativas sin radiación (US, MRI)
+            - No exploraciones "rutinarias" o "de screening" sin justificación
+            
+            **El TSID debe**:
+            - Verificar que existe prescripción médica
+            - Confirmar identidad del paciente
+            - Ante duda sobre justificación: consultar con radiólogo
+            - NUNCA realizar estudio sin prescripción
+            
+            #### 2. Optimización (ALARA)
+            
+            **Definición**: Mantener dosis tan baja como razonablemente posible, 
+            compatible con el objetivo diagnóstico.
+            
+            **Aplicación práctica**:
+            
+            **Para el paciente**:
+            - Técnica óptima (no excesiva)
+            - Colimación estricta
+            - Protecciones (gonadal, tiroides si aplica)
+            - Evitar repeticiones (técnica correcta primera vez)
+            - Protocolos específicos (pediátricos, embarazo)
+            
+            **Para el trabajador**:
+            - **Tiempo**: Mínimo necesario
+            - **Distancia**: Máxima posible
+            - **Blindaje**: Apropiado al riesgo
+            
+            **Para el público**:
+            - Blindaje de instalaciones
+            - Señalización adecuada
+            - Control de accesos
+            
+            #### 3. Limitación de Dosis
+            
+            **Definición**: No superar límites establecidos legalmente
+            
+            **Aplicable a**:
+            - Trabajadores expuestos
+            - Aprendices y estudiantes
+            - Público
+            
+            **NO aplicable a**:
+            - Pacientes (justificación y optimización, sin límite absoluto)
+            - Cuidadores/confortantes de pacientes (límites especiales)
+            - Exposición médica voluntaria en investigación
+            
+            ### Magnitudes y Unidades Dosimétricas
+            
+            #### Dosis Absorbida (D)
+            
+            **Definición**: Energía absorbida por unidad de masa
+            """)
+            
+            st.latex(r"D = \frac{dE}{dm}")
+            
+            st.markdown("""
+            **Unidad**: Gray (Gy) = 1 J/kg
+            
+            **Antigua**: rad = 0.01 Gy
+            
+            **Características**:
+            - Magnitud física objetiva
+            - Medible directamente
+            - No considera tipo de radiación
+            - No considera radiosensibilidad del tejido
+            
+            #### Dosis Equivalente (H_T)
+            
+            **Definición**: Dosis absorbida ponderada por tipo de radiación
+            """)
+            
+            st.latex(r"H_T = \sum_R w_R \times D_{T,R}")
+            
+            st.markdown("""
+            Donde:
+            - **w_R**: Factor de ponderación de la radiación
+            - **D_T,R**: Dosis absorbida en tejido T por radiación R
+            
+            **Unidad**: Sievert (Sv) = 1 J/kg (misma dimensión que Gy, pero concepto diferente)
+            
+            **Antigua**: rem = 0.01 Sv
+            
+            **Factores w_R**:
+            - Fotones (RX, γ): w_R = 1
+            - Electrones, muones: w_R = 1
+            - Neutrones: w_R = 2.5-20 (depende de energía)
+            - Partículas α: w_R = 20
+            
+            **En radiodiagnóstico**: Solo fotones (RX) → w_R = 1 → **H_T = D** (numéricamente)
+            
+            #### Dosis Efectiva (E)
+            
+            **Definición**: Dosis equivalente ponderada por radiosensibilidad del tejido
+            """)
+            
+            st.latex(r"E = \sum_T w_T \times H_T")
+            
+            st.markdown("""
+            Donde:
+            - **w_T**: Factor de ponderación del tejido
+            - **H_T**: Dosis equivalente en tejido T
+            
+            **Unidad**: Sievert (Sv)
+            
+            **Factores w_T** (ICRP 103):
+            - Médula ósea, colon, pulmón, estómago: 0.12 cada uno
+            - Gónadas: 0.08
+            - Vejiga, esófago, hígado, tiroides: 0.04 cada uno
+            - Piel, superficie ósea: 0.01 cada uno
+            - Resto: 0.12 (distribuido)
+            - **Suma total: 1.0**
+            
+            **Utilidad**:
+            - Comparar riesgo entre diferentes exposiciones
+            - Sumar exposiciones de diferentes órganos
+            - Aplicar límites de dosis
+            - Estimación de riesgo de cáncer
+            
+            **Limitación**: 
+            - No es medible directamente (se calcula)
+            - Concepto de protección, no para diagnóstico individual
+            
+            ### Límites de Dosis (Legislación Española/UE)
+            
+            #### Trabajadores Expuestos (Categoría A)
+            
+            **Límite efectivo**:
+            - **20 mSv/año** (promediado en 5 años)
+            - **50 mSv en un solo año** (máximo)
+            - **100 mSv en 5 años consecutivos**
+            
+            **Límites equivalentes (órganos)**:
+            - **Cristalino**: 20 mSv/año (¡reducido desde 150!)
+            - **Piel**: 500 mSv/año (promediado en 1 cm²)
+            - **Manos, pies**: 500 mSv/año
+            
+            ⚠️ **Nueva normativa (2018)**: Límite de cristalino reducido drásticamente
+            → Gafas plomadas obligatorias en fluoroscopia/intervencionismo
+            
+            #### Trabajadoras Embarazadas
+            
+            **Obligatorio**: Declarar embarazo a supervisor de protección radiológica
+            
+            **Límites desde declaración**:
+            - **Superficie de abdomen**: 2 mSv durante resto de embarazo
+            - **Feto**: 1 mSv durante embarazo
+            
+            **Medidas prácticas**:
+            - Reasignación temporal de funciones
+            - Evitar fluoroscopia, intervencionismo, portátiles
+            - Dosímetro adicional a nivel de abdomen
+            - Seguimiento dosimétrico mensual
+            
+            #### Aprendices y Estudiantes (16-18 años)
+            
+            **Límites reducidos**:
+            - **6 mSv/año** (efectiva)
+            - **Cristalino**: 20 mSv/año
+            - **Piel y extremidades**: 150 mSv/año
+            
+            **Supervisión obligatoria** durante prácticas
+            
+            #### Público General
+            
+            **Límite efectivo**:
+            - **1 mSv/año** (adicional al fondo natural y exposiciones médicas)
+            
+            **Límites equivalentes**:
+            - **Cristalino**: 15 mSv/año
+            - **Piel**: 50 mSv/año
+            
+            **Aplicación**:
+            - Diseño de blindajes de instalaciones
+            - Áreas controladas vs vigiladas
+            - Acompañantes de pacientes (límites especiales)
+            
+            ### Ley Inversa del Cuadrado de la Distancia
+            
+            **Principio fundamental**: La intensidad disminuye con el cuadrado de la distancia
+            """)
+            
+            st.latex(r"I(d) = \frac{I_0}{d^2}")
+            
+            st.markdown("""
+            O, para calcular dosis a diferentes distancias:
+            """)
+            
+            st.latex(r"D_2 = D_1 \times \left(\frac{d_1}{d_2}\right)^2")
+            
+            st.markdown("""
+            **Ejemplo práctico**:
+            - Dosis a 1m: 100 µSv/h
+            - Dosis a 2m: 100 × (1/2)² = 25 µSv/h (**4 veces menos**)
+            - Dosis a 3m: 100 × (1/3)² = 11 µSv/h (**9 veces menos**)
+            
+            **Conclusión crítica**: **Duplicar la distancia reduce dosis a ¼**
+            
+            → En radiografía portátil, pasar de 1m a 2m reduce tu dosis **75%**
+            
+            ### Atenuación por Blindaje
+            
+            **Ley exponencial**:
+            """)
+            
+            st.latex(r"I = I_0 \times e^{-\mu x} \approx I_0 \times 0.5^{x/HVL}")
+            
+            st.markdown("""
+            **Capa Hemirreductora (HVL)**:
+            - Espesor que reduce intensidad a la mitad
+            - Cada HVL adicional → reduce a la mitad otra vez
+            
+            **Ejemplo**:
+            - 0 HVL: 100% (sin blindaje)
+            - 1 HVL: 50%
+            - 2 HVL: 25%
+            - 3 HVL: 12.5%
+            - 4 HVL: 6.25%
+            - 5 HVL: 3.125%
+            - 10 HVL: 0.1% (**factor 1000**)
+            
+            **HVL típicas** (plomo):
+            - 60 kVp: 0.15 mm Pb
+            - 80 kVp: 0.25 mm Pb
+            - 100 kVp: 0.35 mm Pb
+            - 150 kVp: 0.60 mm Pb
+            
+            **Delantal 0.5mm Pb** a 80 kVp:
+            - 0.5 / 0.25 = **2 HVL**
+            - Atenúa **75%** de radiación dispersa
+            
+            ### Efectividad de Medidas de Protección
+            
+            **Tabla comparativa** (reducción de dosis):
+            
+            | Medida | Factor de Reducción |
+            |--------|---------------------|
+            | **Salir de la sala** | ∞ (dosis = 0) |
+            | **Distancia 1m → 2m** | 4× |
+            | **Distancia 1m → 3m** | 9× |
+            | **Biombo 2mm Pb** | ~1000× |
+            | **Delantal 0.25mm Pb** | ~2× |
+            | **Delantal 0.5mm Pb** | ~4× |
+            | **Gafas plomadas** | 5-10× (cristalino) |
+            | **Protección tiroidea** | 10× (tiroides) |
+            | **Colimación (½ campo)** | 2× (paciente) |
+            | **Modo pulsado vs continuo** | 2-10× (fluoroscopia) |
+            
+            **Conclusión**: La combinación de medidas es multiplicativa
+            
+            Ejemplo: Distancia ×2 + Delantal 0.5mm + Biombo = 4 × 4 × 1000 = **16,000× reducción**
+            
+            ### Radiación Natural de Fondo
+            
+            **Fuentes naturales** (promedio España: ~2.5 mSv/año):
+            
+            - **Radón** (gas): ~1.3 mSv/año (50%)
+            - **Radiación cósmica**: ~0.4 mSv/año (varía con altitud)
+            - **Radiación terrestre**: ~0.5 mSv/año (varía con geología)
+            - **Interna** (K-40, C-14): ~0.3 mSv/año
+            
+            **Variabilidad geográfica**:
+            - Nivel del mar: ~2 mSv/año
+            - Madrid (600m altitud): ~2.5 mSv/año
+            - Zonas graníticas (Galicia): hasta 5-6 mSv/año
+            - Vuelo trasatlántico: +0.05 mSv
+            
+            **Comparación con medicina**:
+            - Fondo natural: 2.5 mSv/año
+            - RX tórax: 0.02 mSv (= 3 días de fondo)
+            - RX abdomen: 0.7 mSv (= 3-4 meses de fondo)
+            - TC abdomen: 10 mSv (= 4 años de fondo)
+            
+            ### Clasificación de Zonas (RD 783/2001)
+            
+            #### Zona Controlada
+            
+            **Definición**: Zona donde puede superarse 6 mSv/año o 3/10 de límites de órgano
+            
+            **Características**:
+            - Acceso restringido (señalización)
+            - Solo trabajadores expuestos o autorizados
+            - Dosimetría individual obligatoria
+            - Vigilancia médica especial
+            
+            **Ejemplos**:
+            - Salas de RX durante funcionamiento
+            - Salas de fluoroscopia/intervencionismo
+            - Salas de TC
+            - Bunkers de aceleradores lineales
+            
+            #### Zona Vigilada
+            
+            **Definición**: Zona donde puede superarse 1 mSv/año pero no criterios de controlada
+            
+            **Características**:
+            - Señalización menos restrictiva
+            - Acceso regulado
+            - Dosimetría recomendada pero no siempre obligatoria
+            
+            **Ejemplos**:
+            - Salas de control (tras biombo)
+            - Pasillos adyacentes a salas de RX
+            - Zonas cercanas a fuentes
+            
+            #### Zona de Libre Acceso
+            
+            **Definición**: Dosis <1 mSv/año
+            
+            - Público general puede acceder
+            - No requiere medidas especiales
+            
+            ### Clasificación de Trabajadores
+            
+            #### Categoría A
+            
+            **Criterio**: Puede superar 6 mSv/año o 3/10 de límites de órgano
+            
+            **Obligaciones**:
+            - Dosimetría individual obligatoria (mensual)
+            - Vigilancia médica específica (anual)
+            - Formación específica (20h inicial + actualización)
+            - Historial dosimétrico
+            
+            **Ejemplos**:
+            - TSID en intervencionismo
+            - TSID en fluoroscopia intensiva
+            - Físicos médicos
+            - Médicos intervencionistas
+            
+            #### Categoría B
+            
+            **Criterio**: No supera criterios de Cat. A
+            
+            **Obligaciones**:
+            - Dosimetría recomendada
+            - Vigilancia médica general
+            - Formación básica
+            
+            **Ejemplos**:
+            - TSID en radiología convencional
+            - TSID en TC
+            - Personal administrativo en zonas vigiladas
+            
+            ### Riesgo de Cáncer Inducido por Radiación
+            
+            **Estimación ICRP** (modelo LNT):
+            """)
+            
+            st.latex(r"\text{Riesgo} \approx 5\% \text{ por Sv}")
+            
+            st.markdown("""
+            O más precisamente: **5.5% por Sv** (población general)
+            
+            **Interpretación**:
+            - 1 Sv (1000 mSv) → ~5.5% probabilidad adicional de cáncer mortal
+            - 10 mSv → ~0.055% = 1 en 1,800
+            - 1 mSv → ~0.0055% = 1 en 18,000
+            
+            **Contexto**:
+            - Riesgo base de cáncer (España): ~25% (1 de cada 4)
+            - 10 mSv aumenta riesgo a: 25.055% (cambio imperceptible individualmente)
+            - Pero: Significativo en poblaciones grandes
+            
+            **Ejemplos prácticos**:
+            
+            | Exploración | Dosis Efectiva | Riesgo Adicional | Equivalente a |
+            |-------------|----------------|------------------|---------------|
+            | **RX Tórax PA** | 0.02 mSv | 1 en 1,000,000 | 3 días de fondo natural |
+            | **RX Abdomen** | 0.7 mSv | 1 en 26,000 | 4 meses de fondo |
+            | **Mamografía** | 0.4 mSv | 1 en 45,000 | 2 meses de fondo |
+            | **TC Tórax** | 7 mSv | 1 en 2,600 | 3 años de fondo |
+            | **TC Abdomen** | 10 mSv | 1 en 1,800 | 4 años de fondo |
+            | **PET-TC** | 15 mSv | 1 en 1,200 | 6 años de fondo |
+            
+            **Importante**: 
+            - Estos son riesgos **muy bajos**
+            - Casi siempre el beneficio diagnóstico >> riesgo
+            - La NO realización de estudio necesario tiene más riesgo
+            - Pero: **Justificación y optimización siempre obligatorias**
+            
+            ### Gestión del Riesgo: Principio de Proporcionalidad
+            
+            **Balance riesgo/beneficio** según situación:
+            
+            **Alta justificación** (beneficio muy alto):
+            - Trauma severo → TC inmediato sin dudar
+            - Sospecha cáncer → Estudios necesarios
+            - Emergencia vital → Dosis no es limitante
+            
+            **Justificación moderada**:
+            - Seguimiento de patología conocida → Optimizar frecuencia
+            - Síntomas inespecíficos → Considerar alternativas (US, MRI)
+            - Chequeos → Individualizar necesidad
+            
+            **Baja/nula justificación**:
+            - Screening sin indicación → NO realizar
+            - "Por si acaso" → NO justificado
+            - Repetición por curiosidad → NO ético
+            
+            ### Principio de Proporcionalidad en Acción
+            
+            **Caso 1: Niño con traumatismo craneal leve**
+            - Riesgo radiación: Mayor (niño más radiosensible)
+            - Beneficio: Bajo si criterios clínicos no indican TC
+            - **Decisión**: Observación clínica, evitar TC si no indicado
+            
+            **Caso 2: Adulto mayor con sospecha de cáncer pulmonar**
+            - Riesgo radiación: Bajo (menor expectativa de vida, menor radiosensibilidad)
+            - Beneficio: Alto (diagnóstico precoz puede ser curativo)
+            - **Decisión**: TC tórax claramente justificado
+            
+            **Caso 3: Mujer joven con dolor abdominal inespecífico**
+            - Riesgo radiación: Moderado (edad fértil)
+            - Beneficio: Depende de clínica
+            - **Decisión**: Ecografía primero, TC solo si indicación clara
+            
+            ### Conclusión Práctica
+            
+            Como TSID, tu rol es:
+            
+            1. ✅ **Verificar justificación** (prescripción médica)
+            2. ✅ **Optimizar técnica** (ALARA para el paciente)
+            3. ✅ **Protegerte** (ALARA ocupacional)
+            4. ✅ **Documentar** (trazabilidad de dosis)
+            5. ✅ **Comunicar** (explicar al paciente, reportar incidentes)
+            
+            **No eres responsable de** justificar la exploración (médico prescriptor),
+            **pero sí de** cuestionar si hay dudas razonables.
+            
+            **Ante duda**: Consultar con radiólogo o supervisor de protección radiológica.
+            """)
+    
+    # ============================================
+    # SECTION 2: DOSE LIMITS AND DOSIMETRY
+    # ============================================
+    elif protection_section == "📊 Límites y Dosimetría":
+        st.subheader("📊 Límites de Dosis y Dosimetría Personal")
+        
+        st.markdown("""
+        Comprende los límites legales de dosis y cómo interpretar tu dosimetría personal.
+        """)
+        
+        # Interactive dose limit comparison
+        st.markdown("### 📏 Límites de Dosis Legales")
+        
+        # Visual comparison of limits
+        limits_data = {
+            "Categoría": ["Trabajador\n(efectiva)", "Trabajador\n(cristalino)", "Trabajador\n(piel)", 
+                         "Embarazada\n(abdomen)", "Aprendiz\n16-18 años", "Público"],
+            "Límite Anual (mSv)": [20, 20, 500, 2, 6, 1]
+        }
+        
+        fig_limits = go.Figure()
+        
+        colors_limits = ['blue', 'orange', 'red', 'purple', 'green', 'lightblue']
+        
+        fig_limits.add_trace(go.Bar(
+            x=limits_data["Categoría"],
+            y=limits_data["Límite Anual (mSv)"],
+            marker=dict(color=colors_limits),
+            text=limits_data["Límite Anual (mSv)"],
+            textposition='auto'
+        ))
+        
+        fig_limits.update_layout(
+            title="Límites de Dosis Anuales (Legislación Española)",
+            yaxis_title="Dosis (mSv/año)",
+            yaxis_type="log",  # Logarithmic scale due to wide range
+            height=500,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig_limits, use_container_width=True)
+        
+        st.info("""
+        📌 **Nota importante**: El límite de cristalino se **redujo drásticamente** de 150 a 20 mSv/año 
+        con la transposición de Directiva 2013/59/EURATOM (RD 1029/2022).
+        
+        Esto hace **obligatorio** el uso de gafas plomadas en fluoroscopia e intervencionismo.
+        """)
+        
+        # Personal dosimetry simulator
+        st.markdown("---")
+        st.markdown("### 🔬 Simulador de Dosimetría Personal")
+        
+        dosim_col1, dosim_col2 = st.columns(2)
+        
+        with dosim_col1:
+            st.markdown("#### Tu Perfil")
+            worker_category = st.selectbox(
+                "Categoría de trabajador",
+                ["Categoría A (intervencionismo/fluoro)", "Categoría B (RX convencional/TC)", 
+                 "Estudiante en prácticas", "Embarazada (declarada)"]
+            )
+            
+            work_area = st.selectbox(
+                "Área de trabajo principal",
+                ["Radiología convencional", "TC", "Fluoroscopia", "Intervencionismo vascular",
+                 "Radiología portátil", "Mixto"]
+            )
+            
+            hours_per_week = st.slider("Horas de trabajo por semana", 10, 60, 40, 5)
+            
+        with dosim_col2:
+            st.markdown("#### Dosimetría Mensual (últimos 3 meses)")
+            month1 = st.number_input("Mes 1 (mSv)", 0.0, 5.0, 0.2, 0.01, help="Lectura dosímetro mes 1")
+            month2 = st.number_input("Mes 2 (mSv)", 0.0, 5.0, 0.15, 0.01, help="Lectura dosímetro mes 2")
+            month3 = st.number_input("Mes 3 (mSv)", 0.0, 5.0, 0.18, 0.01, help="Lectura dosímetro mes 3")
+        
+        # Calculate projections
+        avg_monthly = (month1 + month2 + month3) / 3
+        projected_annual = avg_monthly * 12
+        
+        # Determine applicable limit
+        if "Embarazada" in worker_category:
+            applicable_limit = 2  # mSv resto de embarazo (~6-7 meses)
+            limit_period = "resto de embarazo"
+        elif "Estudiante" in worker_category:
+            applicable_limit = 6
+            limit_period = "año"
+        else:
+            applicable_limit = 20
+            limit_period = "año"
+        
+        # Calculate percentage
+        percentage_of_limit = (projected_annual / applicable_limit) * 100
+        
+        # Display results
+        st.markdown("---")
+        st.markdown("### 📊 Análisis de Tu Dosimetría")
+        
+        result_col1, result_col2, result_col3, result_col4 = st.columns(4)
+        
+        with result_col1:
+            st.metric(
+                "Promedio Mensual",
+                f"{avg_monthly:.2f} mSv",
+                help="Promedio de los últimos 3 meses"
+            )
+            
+        with result_col2:
+            st.metric(
+                "Proyección Anual",
+                f"{projected_annual:.2f} mSv",
+                help="Extrapolación a 12 meses"
+            )
+            
+        with result_col3:
+            st.metric(
+                "Límite Aplicable",
+                f"{applicable_limit} mSv/{limit_period}",
+                help="Límite legal según tu categoría"
+            )
+            
+        with result_col4:
+            st.metric(
+                "% del Límite",
+                f"{percentage_of_limit:.1f}%",
+                delta=f"{percentage_of_limit - 100:.1f}%" if percentage_of_limit > 100 else None,
+                delta_color="inverse"
+            )
+        
+        # Interpretation and recommendations
+        st.markdown("### 💡 Interpretación y Recomendaciones")
+        
+        if percentage_of_limit < 10:
+            st.success(f"""
+            ✅ **Excelente control de dosis**
+            
+            Tu dosis proyectada ({projected_annual:.2f} mSv/año) representa solo el {percentage_of_limit:.1f}% del límite.
+            
+            **Situación**: Óptima
+            - Protección muy efectiva
+            - Prácticas de trabajo seguras
+            - Continúa con las medidas actuales
+            
+            **Acción**: Ninguna necesaria, mantener buenas prácticas
+            """)
+            
+        elif percentage_of_limit < 30:
+            st.info(f"""
+            ℹ️ **Control adecuado**
+            
+            Tu dosis proyectada ({projected_annual:.2f} mSv/año) es el {percentage_of_limit:.1f}% del límite.
+            
+            **Situación**: Dentro de rangos normales para tu área
+            - Protección efectiva
+            - Prácticas correctas
+            
+            **Acción**: Continuar con protección habitual, revisar ALARA periódicamente
+            """)
+            
+        elif percentage_of_limit < 60:
+            st.warning(f"""
+            ⚠️ **Atención - Revisión recomendada**
+            
+            Tu dosis proyectada ({projected_annual:.2f} mSv/año) es el {percentage_of_limit:.1f}% del límite.
+            
+            **Situación**: Elevada pero dentro del límite
+            - Revisar prácticas de protección
+            - Identificar fuentes principales de exposición
+            - Optimizar técnicas
+            
+            **Acciones recomendadas**:
+            1. Revisar uso correcto de protecciones (delantal, biombo)
+            2. Verificar distancias de trabajo
+            3. Consultar con supervisor de protección radiológica
+            4. Formación de actualización en protección
+            5. Considerar rotación de tareas si posible
+            """)
+            
+        else:  # >= 60%
+            st.error(f"""
+            🚨 **Alerta - Acción inmediata requerida**
+            
+            Tu dosis proyectada ({projected_annual:.2f} mSv/año) es el {percentage_of_limit:.1f}% del límite.
+            
+            **Situación**: Riesgo de superar límite legal
+            
+            **ACCIONES OBLIGATORIAS**:
+            1. ⚠️ **Informar inmediatamente** a supervisor de protección radiológica
+            2. 🔍 **Investigación** de causas (dosímetro correcto, prácticas, equipos)
+            3. 🛡️ **Refuerzo** de medidas de protección
+            4. 📋 **Evaluación** puesto de trabajo
+            5. 🔄 **Reasignación temporal** si es necesario
+            6. 📊 **Seguimiento** dosimétrico más frecuente
+            
+            ⚠️ **Superar el límite** es una no conformidad legal grave
+            """)
+        
+        # Dosimetry comparison chart
+        st.markdown("---")
+        st.markdown("### 📈 Historial Dosimétrico")
+        
+        # Create a simple trend chart
+        months = ['Mes 1', 'Mes 2', 'Mes 3', 'Proyección\nanual']
+        doses = [month1, month2, month3, projected_annual]
+        
+        fig_trend = go.Figure()
+        
+        fig_trend.add_trace(go.Bar(
+            x=months[:3],
+            y=doses[:3],
+            name='Dosis mensual',
+            marker=dict(color='lightblue')
+        ))
+        
+        fig_trend.add_trace(go.Scatter(
+            x=months,
+            y=[avg_monthly, avg_monthly, avg_monthly, projected_annual],
+            mode='lines+markers',
+            name='Promedio/Proyección',
+            line=dict(color='blue', dash='dash')
+        ))
+        
+        # Add limit line
+        fig_trend.add_hline(
+            y=applicable_limit,
+            line_dash="dot",
+            line_color="red",
+            annotation_text=f"Límite legal: {applicable_limit} mSv",
+            annotation_position="right"
+        )
+        
+        fig_trend.update_layout(
+            title="Evolución de Dosis y Proyección Anual",
+            yaxis_title="Dosis (mSv)",
+            height=400,
+            showlegend=True
+        )
+        
+        st.plotly_chart(fig_trend, use_container_width=True)
+        
+        # Dosimeter types explanation
+        st.markdown("---")
+        st.markdown("### 🔬 Tipos de Dosímetros")
+        
+        dosim_type_col1, dosim_type_col2 = st.columns(2)
+        
+        with dosim_type_col1:
+            st.markdown("""
+            #### TLD (Thermoluminescent Dosimeter)
+            
+            **Principio**: 
+            - Material (LiF) almacena energía de radiación
+            - Al calentar, emite luz proporcional a dosis
+            
+            **Características**:
+            - ✅ Reutilizable
+            - ✅ Amplio rango de medida
+            - ✅ Relativamente económico
+            - ❌ Lectura destructiva (debe enviarse)
+            - ❌ No lectura inmediata
+            
+            **Uso**: Dosimetría oficial mensual/trimestral
+            
+            **Colocación**: Solapa o pecho (representativo de cuerpo)
+            """)
+            
+        with dosim_type_col2:
+            st.markdown("""
+            #### OSL (Optically Stimulated Luminescence)
+            
+            **Principio**:
+            - Material (Al₂O₃:C) estimulado con luz láser
+            - Emite luz proporcional a dosis
+            
+            **Características**:
+            - ✅ Lectura no destructiva (puede releerse)
+            - ✅ Mayor sensibilidad que TLD
+            - ✅ Menos sensible a calor/luz ambiental
+            - ✅ Más estable
+            - ❌ Más costoso
+            
+            **Uso**: Cada vez más estándar en dosimetría oficial
+            
+            **Ventaja**: Relectura posible en caso de duda
+            """)
+        
+        st.markdown("""
+        #### Dosímetros Electrónicos (EPD - Electronic Personal Dosimeter)
+        
+        **Principio**: Detector de semiconductor + electrónica
+        
+        **Características**:
+        - ✅ **Lectura inmediata** (tiempo real)
+        - ✅ Alarmas programables
+        - ✅ Registro continuo (trazabilidad)
+        - ✅ Útil para formación (feedback inmediato)
+        - ❌ Más costoso
+        - ❌ Requiere baterías/mantenimiento
+        - ❌ No sustituye dosimetría oficial (complementario)
+        
+        **Uso**: Intervencionismo, fluoroscopia (alto riesgo)
+        
+        **Ventaja principal**: Permite optimización inmediata de prácticas
+        """)
+        
+        # Dosimeter placement
+        st.markdown("---")
+        st.markdown("### 📍 Colocación Correcta del Dosímetro")
+        
+        placement_col1, placement_col2 = st.columns(2)
+        
+        with placement_col1:
+            st.markdown("""
+            #### Sin Delantal Plomado
+            
+            **Posición**: Parte frontal del torso, entre pecho y cintura
+            
+            **Razón**: Representa dosis a órganos del tronco (más radiosensibles)
+            
+            **Típico en**:
+            - Radiología convencional (trabajo tras biombo)
+            - TC (sala de control)
+            - Cuando NO hay exposición directa
+            """)
+            
+        with placement_col2:
+            st.markdown("""
+            #### Con Delantal Plomado
+            
+            **Configuración estándar**: 1 dosímetro
+            - **Posición**: Bajo el delantal (pecho)
+            - **Mide**: Dosis efectiva real tras protección
+            
+            **Configuración completa**: 2 dosímetros
+            - **Uno bajo delantal** (pecho): Dosis a tronco protegido
+            - **Uno sobre delantal** (cuello): Dosis a tiroides, cristalino
+            - **Cálculo**: Dosis efectiva ponderada
+            """)
+        
+        st.info("""
+        **⚠️ Importante en Fluoroscopia/Intervencionismo**:
+        
+        Debido al nuevo límite de cristalino (20 mSv/año), se recomienda:
+        - **Dosímetro de anillo** (manos cerca del campo)
+        - **Dosímetro sobre delantal** (estimar dosis a cristalino)
+        - **Gafas plomadas** (obligatorias)
+        - **Protección tiroidea** (recomendada)
+        """)
+        
+        # Dosimetry record keeper
+        st.markdown("---")
+        st.markdown("### 📋 Registro Dosimétrico")
+        
+        st.markdown("""
+        **Tu derecho como trabajador expuesto**:
+        
+        ✅ Acceso a tu historial dosimétrico completo
+        
+        ✅ Información sobre dosis recibidas (mensual)
+        
+        ✅ Copia del historial al cambiar de empleo
+        
+        ✅ Conservación del historial (mínimo hasta 30 años tras cese actividad)
+        
+        **Obligación del empleador**:
+        - Mantener registro actualizado
+        - Comunicar lecturas al trabajador
+        - Informar si se superan niveles de investigación
+        - Enviar datos a Registro Nacional de Dosis (CSN)
+        """)
+        
+        # Dose comparison tool
+        st.markdown("---")
+        st.markdown("### 🔢 Comparador de Dosis")
+        
+        st.markdown("Compara tu dosis ocupacional con otras fuentes de exposición")
+        
+        your_annual_dose = projected_annual
+        
+        comparisons = {
+            "Tu dosis anual proyectada": your_annual_dose,
+            "Fondo natural (España)": 2.5,
+            "Límite público general": 1.0,
+            "Vuelo Madrid-New York (ida/vuelta)": 0.1,
+            "Mamografía (paciente)": 0.4,
+            "TC abdomen (paciente)": 10.0,
+            "Límite trabajador expuesto": applicable_limit
+        }
+        
+        fig_comparison = go.Figure()
+        
+        colors_comparison = ['red' if 'Tu dosis' in k else 'blue' if 'Límite trabajador' in k else 'gray' 
+                            for k in comparisons.keys()]
+        
+        fig_comparison.add_trace(go.Bar(
+            y=list(comparisons.keys()),
+            x=list(comparisons.values()),
+            orientation='h',
+            marker=dict(color=colors_comparison),
+            text=[f"{v:.2f} mSv" for v in comparisons.values()],
+            textposition='auto'
+        ))
+        
+        fig_comparison.update_layout(
+            title="Comparación de Dosis (mSv/año)",
+            xaxis_title="Dosis (mSv)",
+            height=450,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig_comparison, use_container_width=True)
+        
+        # Action items
+        st.markdown("---")
+        st.markdown("### ✅ Checklist de Buenas Prácticas Dosimétricas")
+        
+        checklist_col1, checklist_col2 = st.columns(2)
+        
+        with checklist_col1:
+            st.markdown("""
+            **Uso del dosímetro**:
+            
+            ☑️ Llevar dosímetro durante TODA la jornada laboral
+            
+            ☑️ Colocación correcta (según protocolo)
+            
+            ☑️ NO olvidarlo en vestuario/taquilla
+            
+            ☑️ NO dejarlo cerca de fuentes de radiación cuando no lo llevas
+            
+            ☑️ NO compartir con otros (es personal)
+            
+            ☑️ Protegerlo de daños físicos
+            
+            ☑️ NO lavar (puede dañarlo)
+            """)
+            
+        with checklist_col2:
+            st.markdown("""
+            **Gestión dosimétrica**:
+            
+            ☑️ Revisar lecturas mensuales
+            
+            ☑️ Investigar aumentos inusuales
+            
+            ☑️ Reportar pérdida o daño inmediatamente
+            
+            ☑️ Mantener registro personal (complementario)
+            
+            ☑️ Informar de embarazo (mujeres)
+            
+            ☑️ Actualizar datos de contacto con servicio dosimétrico
+            
+            ☑️ Solicitar historial al cambiar de empleo
+            """)
+        
+        # Theory expander
+        with st.expander("📚 Teoría: Dosimetría y Límites"):
+            st.markdown("""
+            ## 📊 Fundamentos de Dosimetría Personal
+            
+            ### ¿Por Qué Dosimetría Individual?
+            
+            **Objetivos**:
+            1. **Verificar** que límites no se superan
+            2. **Detectar** exposiciones anómalas
+            3. **Optimizar** prácticas de protección
+            4. **Documentar** historial (evidencia médico-legal)
+            5. **Vigilancia** de salud laboral
+            
+            ### Características de un Buen Dosímetro
+            
+            **Requisitos técnicos**:
+            - **Sensibilidad**: Medir desde ~0.01 mSv
+            - **Rango dinámico**: Hasta varios Sv
+            - **Independencia energética**: Respuesta similar a diferentes keV
+            - **Independencia direccional**: Isotropía razonable
+            - **Linealidad**: Respuesta proporcional a dosis
+            - **Estabilidad**: No degradación con tiempo
+            
+            **Requisitos prácticos**:
+            - Pequeño y ligero
+            - Robusto
+            - No interferir con trabajo
+            - Fácil identificación
+            - Económico (reutilizable)
+            
+            ### Dosímetros TLD: Funcionamiento Detallado
+            
+            **Material**: LiF:Mg,Ti (Fluoruro de litio dopado)
+            
+            **Proceso**:
+            
+            1. **Exposición**: Radiación ioniza átomos del cristal
+            2. **Atrapamiento**: Electrones quedan atrapados en defectos del cristal
+            3. **Almacenamiento**: Electrones permanecen atrapados (semanas/meses)
+            4. **Lectura**: Calentamiento (~300°C) libera electrones
+            5. **Emisión**: Electrones emiten luz al volver a nivel base
+            6. **Medida**: Fotomultiplicador mide luz total ∝ dosis
+            7. **Borrado**: Calentamiento completo resetea el dosímetro
+            
+            **Ventajas**:
+            - Integra dosis durante periodo completo
+            - Reutilizable indefinidamente
+            - Pequeño (chip de 3×3×1 mm típico)
+            
+            **Limitaciones**:
+            - Lectura destructiva (no relectura)
+            - Desvanecimiento (fading) ~5% en 3 meses
+            - Sensible a luz y calor extremos
+            
+            ### Dosímetros OSL: Ventajas sobre TLD
+            
+            **Material**: Al₂O₃:C (Óxido de aluminio dopado con carbono)
+            
+            **Diferencias clave**:
+            - **Estimulación**: Luz láser (no calor)
+            - **Lectura**: NO destructiva (solo consume ~0.1% señal)
+            - **Relectura**: Posible múltiples veces
+            - **Estabilidad**: Mejor (menos fading)
+            - **Sensibilidad**: 3-5× mayor que TLD
+            
+            **Proceso de lectura**:
+            1. Láser verde (532 nm) estimula el dosímetro
+            2. Electrones atrapados se liberan
+            3. Emiten luz UV-azul (420 nm)
+            4. Filtro óptico separa luz láser de señal
+            5. PMT mide señal ∝ dosis
+            6. Solo se consume pequeña fracción de señal
+            
+            ### Dosímetros Electrónicos: Tiempo Real
+            
+            **Tecnologías**:
+            - **Diodo de silicio**: Sensible, económico
+            - **Cámara de ionización miniatura**: Referencia gold-standard
+            - **MOSFET**: Alta sensibilidad, compacto
+            
+            **Funcionalidades**:
+            - Display en tiempo real
+            - Alarmas (dosis rate y dosis acumulada)
+            - Memoria de eventos
+            - Comunicación (Bluetooth, IR)
+            - Registro temporal (gráficas)
+            
+            **Aplicaciones ideales**:
+            - **Formación**: Feedback inmediato mejora prácticas
+            - **Alto riesgo**: Fluoroscopia, intervencionismo
+            - **Investigación**: Análisis detallado de exposiciones
+            - **Emergencias**: Gestión en tiempo real
+            
+            **Limitación**: NO sustituye dosimetría oficial (TLD/OSL)
+            → Complementario, no alternativo
+            
+            ### Niveles de Registro e Investigación
+            
+            **Nivel de Registro** (Recording Level):
+            - Dosis mínima que debe registrarse oficialmente
+            - Típicamente: **0.1 mSv** en periodo de medida
+            - Por debajo: Se registra como "< nivel de registro" o "0"
+            
+            **Nivel de Investigación** (Investigation Level):
+            - Dosis que dispara investigación de causas
+            - Típicamente: **3/10 del límite anual**
+            - Para trabajador Cat. A: ~**6 mSv** en periodo
+            
+            **Si se supera nivel de investigación**:
+            1. Verificar dosímetro (¿uso correcto?, ¿daño?)
+            2. Analizar prácticas de trabajo (¿cambios?)
+            3. Evaluar equipos (¿mal funcionamiento?)
+            4. Revisar protecciones (¿adecuadas?)
+            5. Documentar hallazgos
+            6. Implementar acciones correctivas
+            7. Seguimiento reforzado
+            
+            ### Interpretación de Lecturas Anómalas
+            
+            **Lectura muy alta (ej: 10 mSv en 1 mes)**:
+            
+            Posibles causas:
+            1. **Exposición real**: Procedimientos complejos, emergencias
+            2. **Uso incorrecto**: Dosímetro dejado cerca de fuente
+            3. **Contaminación radiactiva**: Poco probable en RX (no en medicina nuclear)
+            4. **Fallo del dosímetro**: Exposición a luz/calor extremo
+            5. **Intercambio de dosímetros**: Con colega de área de mayor riesgo
+            
+            **Investigación**:
+            - Entrevista al trabajador (¿recuerda algo inusual?)
+            - Revisión de registro de trabajo (¿procedimientos especiales?)
+            - Verificación dosimétrica (¿otros trabajadores también elevados?)
+            - Lectura de dosímetro electrónico si existe
+            
+            **Lectura cero constante**:
+            
+            Posibles causas:
+            1. **No uso del dosímetro** (¡incumplimiento!)
+            2. **Excelente protección** (poco probable si es siempre cero)
+            3. **Trabajo exclusivo sin exposición** (¿realista?)
+            
+            **Acción**: Verificar que el trabajador lleva el dosímetro
+            
+            ### Dosimetría de Extremidades
+            
+            **Cuándo necesaria**:
+            - Manos cerca del haz primario (< 5 cm)
+            - Fluoroscopia/intervencionismo con manos en campo
+            - Sujeción de pacientes (¡NO debería ocurrir!)
+            - Braquiterapia
+            
+            **Dosímetro de anillo**:
+            - Se lleva en dedo (base, no punta)
+            - Mano dominante (más expuesta)
+            - Lado palmar (hacia la fuente)
+            - TLD de chip único o múltiple
+            
+            **Interpretación**:
+            - Dosis en anillo >> dosis en torso (normal)
+            - Límite: 500 mSv/año
+            - Si >100 mSv/año: Revisar técnica
+            
+            ### Dosimetría de Cristalino
+            
+            **Nuevo límite (20 mSv/año)** ha cambiado paradigma:
+            
+            **Estimación de dosis a cristalino**:
+            
+            Método 1: **Dosímetro sobre delantal** (cuello)
+            - Aproximación: Dosis_cristalino ≈ 0.75 × Dosis_cuello
+            - Con gafas plomadas: ÷ 10 adicional
+            
+            Método 2: **Dosímetro específico** (cerca de ojo)
+            - Clip en gafas o diadema
+            - Más preciso pero menos práctico
+            
+            Método 3: **Cálculo desde cuerpo entero**
+            - Dosis_cristalino ≈ 3 × Dosis_sobre_delantal
+            - O: Dosis_cristalino ≈ 10-100 × Dosis_bajo_delantal
+            - Muy variable según geometría
+            
+            **Protección obligatoria**:
+            - Gafas plomadas (0.5-0.75 mm Pb eq)
+            - Reducción típica: Factor 5-10
+            - Con protección lateral: Factor >10
+            
+            ### Algoritmo de Cálculo de Dosis Efectiva
+            
+            **Configuración: Dosímetro bajo delantal**
+            
+            Dosis efectiva ≈ Lectura dosímetro
+            
+            (El delantal ya ha atenuado, dosímetro mide dosis real a órganos del tronco)
+            
+            **Configuración: Dos dosímetros (bajo y sobre delantal)**
+            
+            Método NCRP Report 122:
+            """)
+            
+            st.latex(r"E = 0.5 \times H_B + 0.025 \times H_O")
+            
+            st.markdown("""
+            Donde:
+            - E = Dosis efectiva
+            - H_B = Lectura bajo delantal (cuerpo)
+            - H_O = Lectura sobre delantal (cuello)
+            - Coeficientes reflejan: 50% órganos protegidos, 2.5% no protegidos
+            
+            **Ejemplo**:
+            - Bajo delantal: 0.1 mSv/mes
+            - Sobre delantal: 2.0 mSv/mes
+            - E = 0.5 × 0.1 + 0.025 × 2.0 = 0.05 + 0.05 = **0.10 mSv/mes**
+            
+            ### Historial Dosimétrico: Valor Legal
+            
+            **Información que debe contener**:
+            - Datos personales del trabajador
+            - Periodo de medida
+            - Dosis efectiva
+            - Dosis equivalentes (si aplicable)
+            - Tipo de dosímetro
+            - Instalación/empresa
+            - Tipo de trabajo
+            
+            **Conservación**:
+            - Hasta 30 años tras fin de actividad
+            - O hasta 75 años de edad del trabajador
+            - La que sea más larga
+            
+            **Registro centralizado**:
+            - España: **Banco de Datos de Dosis** (CSN)
+            - Todas las empresas deben enviar datos
+            - Permite seguimiento si trabajador cambia de empleo
+            - Accesible para vigilancia médica
+            
+            **Derechos del trabajador**:
+            - Acceso completo a su historial
+            - Copia al finalizar relación laboral
+            - Información comprensible (no solo números)
+            - Explicación si valores inusuales
+            
+            ### Casos Especiales
+            
+            #### Mujeres en Edad Fértil
+            
+            **Normativa**: Sin restricciones especiales
+            - Mismo límite que hombres (20 mSv/año)
+            - **Pero**: Obligación de declarar embarazo lo antes posible
+            
+            **Buena práctica**:
+            - Información previa sobre importancia de declaración
+            - Ambiente laboral que facilite comunicación
+            - Plan de contingencia preparado
+            
+            #### Embarazo Declarado
+            
+            **Límites desde declaración**:
+            - **Feto**: 1 mSv resto de embarazo
+            - **Superficie abdomen**: 2 mSv/mes
+            
+            **Gestión práctica**:
+            
+            Opción 1: **Reasignación temporal**
+            - A trabajo sin exposición (TC, administrativa)
+            - Preferible y habitual
+            
+            Opción 2: **Continuar con restricciones**
+            - Solo radiología convencional (no portátil)
+            - Dosímetro adicional a nivel de abdomen
+            - Seguimiento mensual estricto
+            - **NO** fluoroscopia, intervencionismo, portátiles
+            
+            Opción 3: **Baja laboral**
+            - Si no es posible reasignación
+            - Según valoración médica
+            
+            #### Estudiantes en Prácticas
+            
+            **Límites** (16-18 años):
+            - Dosis efectiva: 6 mSv/año
+            - 3/10 del límite de trabajadores
+            
+            **Requisitos**:
+            - Supervisión directa obligatoria
+            - Formación específica previa
+            - Dosimetría individual
+            - Autorización de padres/tutores (menores)
+            - Vigilancia médica
+            
+            **Prohibiciones**:
+            - NO tareas de máximo riesgo sin supervisión
+            - NO exposiciones no justificadas (formativas puras)
+            
+            ### Auditorías e Inspecciones
+            
+            **Inspecciones del CSN**:
+            - Periódicas (cada 2-5 años según instalación)
+            - Verifican cumplimiento normativo
+            - Revisan historiales dosimétricos
+            - Pueden solicitar documentación
+            
+            **Preparación para inspección**:
+            - Historiales actualizados
+            - Acreditación servicio dosimétrico
+            - Registros de entrega/recogida dosímetros
+            - Formación del personal al día
+            - Protocolos escritos disponibles
+            
+            **No conformidades típicas**:
+            - Dosimetría no actualizada
+            - Trabajadores sin dosímetro
+            - Formación caducada
+            - Vigilancia médica no realizada
+            - Documentación incompleta
+            
+            **Consecuencias de incumplimiento**:
+            - Advertencia y plazo para corrección
+            - Multas (según gravedad)
+            - Suspensión de autorización (casos graves)
+            - Responsabilidad penal (negligencia grave)
+            
+            ### Buenas Prácticas en Gestión Dosimétrica
+            
+            **Para el TSID**:
+            1. Llevar dosímetro SIEMPRE que estés en zona controlada/vigilada
+            2. Colocación correcta según protocolo
+            3. NO dejar cerca de fuentes cuando no lo llevas
+            4. Revisar lecturas mensuales
+            5. Reportar anomalías inmediatamente
+            6. Mantener tu propio registro (Excel, cuaderno)
+            7. Solicitar explicaciones si no entiendes lecturas
+            
+            **Para el supervisor de protección radiológica**:
+            1. Sistema fiable de distribución/recogida
+            2. Análisis rutinario de lecturas
+            3. Investigación proactiva de desviaciones
+            4. Feedback a trabajadores
+            5. Formación continua
+            6. Cultura de seguridad (no punitiva ante reporte)
+            
+            ### Tecnologías Emergentes
+            
+            **Dosimetría en tiempo real con IA**:
+            - Algoritmos predicen dosis basándose en parámetros de equipo
+            - Sin necesidad de dosímetro físico
+            - Útil para optimización inmediata
+            - **Limitación**: No sustituye dosimetría legal (aún)
+            
+            **Dosimetría 3D**:
+            - Reconstrucción de distribución de dosis en cuerpo
+            - Basada en geometría del procedimiento
+            - Permite optimizar posición del trabajador
+            
+            **Blockchain para historial dosimétrico**:
+            - Registro inmutable y descentralizado
+            - Acceso controlado por el trabajador
+            - Portabilidad entre empleadores
+            - En fase de investigación
+            
+            ### Conclusión Práctica
+            
+            La dosimetría personal es:
+            - **Obligación legal** (no opcional)
+            - **Herramienta de protección** (te informa de tu exposición)
+            - **Evidencia médico-legal** (historial para toda la vida)
+            - **Instrumento de optimización** (mejora prácticas)
+            
+            **Tu responsabilidad**:
+            - Usarla correctamente
+            - Revisarla regularmente
+            - Actuar si valores preocupantes
+            - Conservar tu historial
+            
+            **Recuerda**: La mejor dosis es la que NO recibes (ALARA).
+            """)
+    
+    # ============================================
+    # SECTION 3: SHIELDING CALCULATIONS
+    # ============================================
+    elif protection_section == "🧱 Cálculo de Blindajes":
+        st.subheader("🧱 Cálculo de Blindajes")
+        
+        st.markdown("""
+        Aprende a calcular el blindaje necesario para proteger áreas adyacentes a salas de rayos X.
+        """)
+        
+        # Interactive shielding calculator
+        st.markdown("### 🔧 Calculadora de Blindaje")
+        
+        shield_col1, shield_col2, shield_col3 = st.columns(3)
+        
+        with shield_col1:
+            st.markdown("#### Parámetros del Equipo")
+            shield_kVp = st.slider("kVp del equipo", 40, 150, 100, 5, key="shield_kvp")
+            workload_patients_day = st.number_input("Pacientes/día", 1, 200, 50)
+            avg_mAs_per_patient = st.number_input("mAs promedio/paciente", 1, 100, 20)
+            days_per_week_operation = st.number_input("Días/semana operación", 1, 7, 5)
+            
+        with shield_col2:
+            st.markdown("#### Geometría")
+            distance_to_point = st.slider("Distancia a punto de interés (m)", 1.0, 10.0, 3.0, 0.5)
+            occupancy_factor = st.select_slider(
+                "Factor de ocupación",
+                options=[1, 0.5, 0.2, 0.05, 0.025],
+                value=1,
+                help="1=siempre ocupado, 0.5=50% tiempo, 0.2=20%, 0.05=ocasional, 0.025=raro"
+            )
+            use_factor = st.select_slider(
+                "Factor de uso",
+                options=[1, 0.5, 0.25, 0.1],
+                value=0.25,
+                help="Fracción del tiempo que el haz apunta a esa barrera"
+            )
+            
+        with shield_col3:
+            st.markdown("#### Objetivo de Protección")
+            area_type = st.selectbox(
+                "Tipo de área a proteger",
+                ["Área controlada (trabajadores)", "Área pública", "Exterior edificio"]
+            )
+            
+            if "pública" in area_type.lower() or "Exterior" in area_type:
+                target_dose_mSv_week = st.number_input(
+                    "Dosis objetivo (mSv/semana)",
+                    0.001, 0.1, 0.02,
+                    help="Típico: 0.02 mSv/semana (= 1 mSv/año)"
+                )
+            else:
+                target_dose_mSv_week = st.number_input(
+                    "Dosis objetivo (mSv/semana)",
+                    0.001, 1.0, 0.4,
+                    help="Típico: 0.4 mSv/semana (= 20 mSv/año)"
+                )
+        
+        # Calculate workload
+        workload_mAmin = calculate_workload(workload_patients_day, avg_mAs_per_patient, days_per_week_operation)
+        
+        # Estimate unshielded dose at 1m (very simplified model)
+        # Typical: ~1 µGy per mAs at 1m for scatter
+        dose_rate_per_mAs = 0.001  # mSv per mAs at 1m (scatter approximation)
+        
+        # Weekly dose at 1m without shielding
+        weekly_exposure_mAs = workload_patients_day * avg_mAs_per_patient * days_per_week_operation
+        dose_at_1m_week = weekly_exposure_mAs * dose_rate_per_mAs
+        
+        # Apply inverse square law
+        dose_at_distance = calculate_dose_at_distance(dose_at_1m_week, 1.0, distance_to_point)
+        
+        # Apply use and occupancy factors
+        dose_at_point_unshielded = dose_at_distance * use_factor * occupancy_factor
+        
+        # Calculate required attenuation
+        if dose_at_point_unshielded > target_dose_mSv_week:
+            attenuation_needed = target_dose_mSv_week / dose_at_point_unshielded
+        else:
+            attenuation_needed = 1.0  # No shielding needed
+        
+        # Get HVL for lead at this kVp
+        hvl_lead = get_hvl_for_material("Plomo", shield_kVp)
+        hvl_concrete = get_hvl_for_material("Hormigón", shield_kVp)
+        
+        # Calculate thickness needed
+        if attenuation_needed < 1.0:
+            n_hvls_needed = -np.log2(attenuation_needed)
+            thickness_lead_mm = n_hvls_needed * hvl_lead
+            thickness_concrete_cm = n_hvls_needed * hvl_concrete / 10
+        else:
+            n_hvls_needed = 0
+            thickness_lead_mm = 0
+            thickness_concrete_cm = 0
+        
+        # Display results
+        st.markdown("---")
+        st.markdown("### 📊 Resultados del Cálculo")
+        
+        calc_col1, calc_col2, calc_col3, calc_col4 = st.columns(4)
+        
+        with calc_col1:
+            st.metric(
+                "Carga de trabajo",
+                f"{workload_mAmin:.1f} mA·min/semana",
+                help="Carga total semanal"
+            )
+            
+        with calc_col2:
+            st.metric(
+                "Dosis sin blindaje",
+                f"{dose_at_point_unshielded:.3f} mSv/semana",
+                help="Dosis en el punto sin protección"
+            )
+            
+        with calc_col3:
+            st.metric(
+                "Atenuación necesaria",
+                f"Factor {1/attenuation_needed:.1f}" if attenuation_needed < 1 else "No necesaria",
+                help="Factor de reducción requerido"
+            )
+            
+        with calc_col4:
+            st.metric(
+                "HVL necesarias",
+                f"{n_hvls_needed:.1f}",
+                help="Número de capas hemirreductoras"
+            )
+        
+        # Shielding recommendations
+        st.markdown("### 🛡️ Recomendaciones de Blindaje")
+        
+        if attenuation_needed >= 1.0:
+            st.success("""
+            ✅ **No se requiere blindaje adicional**
+            
+            La distancia y los factores de uso/ocupación son suficientes para cumplir objetivos de dosis.
+            
+            **Recomendaciones**:
+            - Verificar que puertas/ventanas no permitan exposición directa
+            - Señalización adecuada de zona controlada
+            - Mantener protocolos de acceso
+            """)
+        else:
+            recommend_col1, recommend_col2 = st.columns(2)
+            
+            with recommend_col1:
+                st.info(f"""
+                **Opción 1: Plomo**
+                
+                Espesor mínimo: **{thickness_lead_mm:.2f} mm Pb**
+                
+                Redondeado: **{np.ceil(thickness_lead_mm*4)/4:.2f} mm Pb**
+                
+                (Láminas comerciales: 0.5, 1, 1.5, 2, 2.5, 3 mm)
+                
+                **Ventajas**:
+                - ✅ Menor espesor
+                - ✅ Ocupa menos espacio
+                - ✅ Ideal para retrofitting
+                
+                **Desventajas**:
+                - ❌ Más costoso
+                - ❌ Pesado (11.3 kg/m² por mm)
+                - ❌ Requiere soporte estructural
+                """)
+                
+            with recommend_col2:
+                st.info(f"""
+                **Opción 2: Hormigón**
+                
+                Espesor mínimo: **{thickness_concrete_cm:.1f} cm hormigón**
+                
+                Redondeado: **{np.ceil(thickness_concrete_cm):.0f} cm**
+                
+                (Densidad estándar: 2.35 g/cm³)
+                
+                **Ventajas**:
+                - ✅ Más económico
+                - ✅ Estructural (pared portante)
+                - ✅ Estándar en construcción
+                
+                **Desventajas**:
+                - ❌ Mucho más grueso
+                - ❌ Solo viable en construcción nueva
+                - ❌ Reduce espacio útil
+                """)
+            
+            # Additional materials
+            st.markdown("**Opciones Alternativas:**")
+            
+            materials_comparison = {
+                "Material": ["Plomo", "Acero", "Hormigón baritado", "Hormigón normal", "Ladrillo macizo"],
+                "Espesor (mm)": [
+                    thickness_lead_mm,
+                    thickness_lead_mm * (get_hvl_for_material("Acero", shield_kVp) / hvl_lead),
+                    thickness_concrete_cm * 10 * 0.7,  # Barite concrete is denser
+                    thickness_concrete_cm * 10,
+                    thickness_concrete_cm * 10 * 1.3
+                ],
+                "Peso (kg/m²)": [
+                    thickness_lead_mm * 11.3,
+                    thickness_lead_mm * (get_hvl_for_material("Acero", shield_kVp) / hvl_lead) * 7.8,
+                    thickness_concrete_cm * 10 * 0.7 * 0.35,
+                    thickness_concrete_cm * 10 * 0.235,
+                    thickness_concrete_cm * 10 * 1.3 * 0.18
+                ],
+                "Coste relativo": [4, 2, 1.5, 1, 0.8]
+            }
+            
+            df_materials = pd.DataFrame(materials_comparison)
+            df_materials["Espesor (mm)"] = df_materials["Espesor (mm)"].round(1)
+            df_materials["Peso (kg/m²)"] = df_materials["Peso (kg/m²)"].round(1)
+            
+            st.dataframe(df_materials, use_container_width=True)
+        
+        # Visualization of attenuation
+        st.markdown("---")
+        st.markdown("### 📉 Curva de Atenuación")
+        
+        # Calculate dose vs shielding thickness
+        thicknesses_mm_pb = np.linspace(0, thickness_lead_mm * 1.5 if thickness_lead_mm > 0 else 5, 50)
+        doses_vs_thickness = []
+        
+        for thick in thicknesses_mm_pb:
+            transmission = calculate_transmission_through_shielding(hvl_lead, thick)
+            dose = dose_at_point_unshielded * transmission
+            doses_vs_thickness.append(dose)
+        
+        fig_attenuation = go.Figure()
+        
+        fig_attenuation.add_trace(go.Scatter(
+            x=thicknesses_mm_pb,
+            y=doses_vs_thickness,
+            mode='lines',
+            name='Dosis vs espesor',
+            line=dict(color='blue', width=3)
+        ))
+        
+        # Add target line
+        fig_attenuation.add_hline(
+            y=target_dose_mSv_week,
+            line_dash="dash",
+            line_color="green",
+            annotation_text=f"Objetivo: {target_dose_mSv_week} mSv/semana",
+            annotation_position="right"
+        )
+        
+        # Mark required thickness
+        if thickness_lead_mm > 0:
+            fig_attenuation.add_vline(
+                x=thickness_lead_mm,
+                line_dash="dot",
+                line_color="red",
+                annotation_text=f"Requerido: {thickness_lead_mm:.2f} mm",
+                annotation_position="top"
+            )
+        
+        fig_attenuation.update_layout(
+            title="Atenuación vs Espesor de Plomo",
+            xaxis_title="Espesor de Plomo (mm)",
+            yaxis_title="Dosis (mSv/semana)",
+            yaxis_type="log",
+            height=450,
+            hovermode='x'
+        )
+        
+        st.plotly_chart(fig_attenuation, use_container_width=True)
+        
+        # Factors explanation
+        st.markdown("---")
+        st.markdown("### 📖 Factores de Cálculo")
+        
+        factor_col1, factor_col2 = st.columns(2)
+        
+        with factor_col1:
+            st.markdown(f"""
+            #### Factor de Uso (U = {use_factor})
+            
+            **Definición**: Fracción del tiempo que el haz primario apunta hacia la barrera
+            
+            **Valores típicos**:
+            - **1.0**: Suelo (haz siempre hacia abajo)
+            - **0.25**: Paredes (haz horizontal ~25% del tiempo)
+            - **0.1**: Techo (haz hacia arriba raramente)
+            - **0.5**: Pared con bucky mural (uso frecuente)
+            
+            **Tu selección**: {use_factor} = {['Uso completo', 'Uso frecuente (50%)', 'Uso medio (25%)', 'Uso ocasional (10%)'][{1:0, 0.5:1, 0.25:2, 0.1:3}[use_factor]]}
+            """)
+            
+        with factor_col2:
+            st.markdown(f"""
+            #### Factor de Ocupación (T = {occupancy_factor})
+            
+            **Definición**: Fracción del tiempo que el área está ocupada
+            
+            **Valores típicos**:
+            - **1.0**: Área siempre ocupada (oficinas, salas de espera)
+            - **0.5**: Ocupación media (pasillos con tráfico)
+            - **0.2**: Ocupación baja (almacenes, cuartos técnicos)
+            - **0.05**: Ocupación ocasional (escaleras, baños)
+            - **0.025**: Ocupación rara (aparcamientos, azoteas)
+            
+            **Tu selección**: {occupancy_factor} = {['Siempre', 'Media (50%)', 'Baja (20%)', 'Ocasional (5%)', 'Rara (2.5%)'][{1:0, 0.5:1, 0.2:2, 0.05:3, 0.025:4}[occupancy_factor]]}
+            """)
+        
+        # Practical considerations
+        st.markdown("---")
+        st.markdown("### 🔨 Consideraciones Prácticas de Instalación")
+        
+        pract_col1, pract_col2 = st.columns(2)
+        
+        with pract_col1:
+            st.warning("""
+            **⚠️ Puntos Críticos - NO olvidar**:
+            
+            1. **Juntas y solapamientos**:
+               - Solapar láminas mínimo 1 cm
+               - Sellar juntas (no dejar huecos)
+               - Especial atención en esquinas
+            
+            2. **Penetraciones**:
+               - Puertas: Equivalente a pared (mismo blindaje)
+               - Ventanas: Vidrio plomado + marco plomado
+               - Conductos: Laberintos o blindaje adicional
+               - Cables/tuberías: Sellar con material plomado
+            
+            3. **Áreas vulnerables**:
+               - Bajo puertas (umbral plomado)
+               - Marcos de ventanas
+               - Falsos techos/suelos técnicos
+               - Cajas de enchufes/interruptores
+            
+            4. **Carga estructural**:
+               - Plomo es MUY pesado (11.3 kg/m² por mm)
+               - Verificar capacidad estructural
+               - Refuerzo puede ser necesario
+               - Consultar ingeniero estructural
+            """)
+            
+        with pract_col2:
+            st.info("""
+            **✅ Buenas Prácticas**:
+            
+            1. **Documentación**:
+               - Planos "as-built" con blindajes
+               - Certificados de materiales
+               - Medidas de verificación post-instalación
+               - Conservar para inspecciones
+            
+            2. **Verificación**:
+               - Medidas con detector calibrado
+               - Con equipo en funcionamiento
+               - En todas las áreas críticas
+               - Por empresa acreditada
+            
+            3. **Señalización**:
+               - Zona controlada (trébol)
+               - Zona vigilada (si aplica)
+               - Advertencias en puertas
+               - Luces de aviso en funcionamiento
+            
+            4. **Mantenimiento**:
+               - Inspección visual periódica (grietas, oxidación)
+               - Verificar puertas (cierre hermético)
+               - Revisar tras reformas/obras
+               - Re-evaluación si cambio de equipo/uso
+            """)
+        
+        # Quick reference table
+        st.markdown("---")
+        st.markdown("### 📋 Tabla de Referencia Rápida")
+        
+        st.markdown("""
+        **Espesores típicos de plomo para diferentes escenarios** (orientativo):
+        """)
+        
+        reference_data = {
+            "Escenario": [
+                "RX dental (70 kVp)",
+                "RX general (80-100 kVp)",
+                "RX alta tensión (120-150 kVp)",
+                "Fluoroscopia (100-120 kVp)",
+                "TC (120-140 kVp)",
+                "Mamografía (25-30 kVp)"
+            ],
+            "Pared primaria (mm Pb)": ["1.5-2.0", "2.0-2.5", "2.5-3.0", "2.5-3.0", "2.5-3.0", "0.5-1.0"],
+            "Pared secundaria (mm Pb)": ["0.5-1.0", "1.0-1.5", "1.5-2.0", "2.0-2.5", "1.5-2.0", "0.5"],
+            "Puerta (mm Pb)": ["1.0", "1.5-2.0", "2.0", "2.0-2.5", "2.0", "0.5"],
+            "Visor (mm Pb eq)": ["1.0", "1.5-2.0", "2.0", "2.0", "2.0", "0.5"]
+        }
+        
+        df_reference = pd.DataFrame(reference_data)
+        st.dataframe(df_reference, use_container_width=True)
+        
+        st.caption("""
+        ⚠️ **Advertencia**: Estos son valores orientativos. El cálculo exacto debe realizarse 
+        por un experto en protección radiológica considerando todos los factores específicos 
+        de la instalación.
+        """)
+        
+        # Download calculation report
+        if thickness_lead_mm > 0:
+            st.markdown("---")
+            st.markdown("### 📄 Informe de Cálculo")
+            
+            report_text = f"""
+INFORME DE CÁLCULO DE BLINDAJE
+================================
+
+PARÁMETROS DE ENTRADA:
+----------------------
+Equipo: Rayos X de diagnóstico
+kVp máximo: {shield_kVp} kVp
+Carga de trabajo: {workload_mAmin:.1f} mA·min/semana
+  - Pacientes/día: {workload_patients_day}
+  - mAs/paciente: {avg_mAs_per_patient}
+  - Días/semana: {days_per_week_operation}
+
+GEOMETRÍA:
+----------
+Distancia al punto: {distance_to_point} m
+Factor de uso (U): {use_factor}
+Factor de ocupación (T): {occupancy_factor}
+
+OBJETIVO DE PROTECCIÓN:
+-----------------------
+Tipo de área: {area_type}
+Dosis objetivo: {target_dose_mSv_week} mSv/semana
+
+RESULTADOS:
+-----------
+Dosis sin blindaje: {dose_at_point_unshielded:.3f} mSv/semana
+Atenuación requerida: {1/attenuation_needed:.1f}×
+Número de HVL: {n_hvls_needed:.2f}
+
+BLINDAJE RECOMENDADO:
+--------------------
+Plomo: {thickness_lead_mm:.2f} mm Pb (redondear a {np.ceil(thickness_lead_mm*4)/4:.2f} mm)
+Hormigón: {thickness_concrete_cm:.1f} cm (redondear a {np.ceil(thickness_concrete_cm):.0f} cm)
+
+HVL utilizado:
+- Plomo: {hvl_lead:.3f} mm
+- Hormigón: {hvl_concrete:.1f} mm
+
+VERIFICACIÓN POST-INSTALACIÓN:
+------------------------------
+Se recomienda verificar mediante medidas directas que la dosis en el punto
+de interés no supera {target_dose_mSv_week} mSv/semana con el equipo en 
+condiciones de carga máxima.
+
+NORMATIVA APLICABLE:
+-------------------
+- Real Decreto 1085/2009
+- Real Decreto 783/2001
+- Guía de Seguridad del CSN nº 5.10
+
+Fecha: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+NOTA: Este cálculo es orientativo. El diseño definitivo debe ser realizado
+por un experto cualificado en protección radiológica.
+"""
+            
+            st.download_button(
+                label="📥 Descargar Informe (TXT)",
+                data=report_text,
+                file_name=f"informe_blindaje_{shield_kVp}kVp.txt",
+                mime="text/plain"
+            )
+    
+    # ============================================
+    # SECTION 4: FACILITY DESIGN
+    # ============================================
+    elif protection_section == "🏥 Diseño de Instalaciones":
+        st.subheader("🏥 Diseño de Instalaciones Radiológicas")
+        
+        st.markdown("""
+        Principios de diseño y distribución de una sala de rayos X para optimizar 
+        la protección radiológica.
+        """)
+        
+        # Facility type selector
+        facility_type = st.selectbox(
+            "Tipo de instalación",
+            ["Sala de Radiología Convencional", "Sala de Fluoroscopia", "Sala de TC", 
+             "Sala de Mamografía", "Radiología Dental"]
+        )
+        
+        st.markdown(f"### 📐 Diseño de: {facility_type}")
+        
+        # Show specific design for each type
+        if facility_type == "Sala de Radiología Convencional":
+            st.markdown("""
+            #### Requisitos Mínimos (RD 1085/2009)
+            
+            **Dimensiones**:
+            - Superficie mínima: **20 m²** (recomendado 25-30 m²)
+            - Altura mínima: **2.5 m**
+            - Distancia tubo-bucky: Ajustable 100-150 cm
+            
+            **Elementos de protección**:
+            """)
+            
+            design_col1, design_col2 = st.columns(2)
+            
+            with design_col1:
+                st.info("""
+                **Barreras Primarias**:
+                
+                ✅ Paredes donde incide haz directo
+                - Típicamente: 2 paredes (bucky mural + camilla)
+                - Blindaje: 2-2.5 mm Pb eq (100 kVp)
+                - Hasta 2.1 m de altura mínimo
+                
+                ✅ Suelo (si hay sala debajo)
+                - Blindaje: 2-2.5 mm Pb eq
+                - Considerar peso del equipo
+                """)
+                
+            with design_col2:
+                st.info("""
+                **Barreras Secundarias**:
+                
+                ✅ Resto de paredes (dispersión)
+                - Blindaje: 1-1.5 mm Pb eq
+                - Altura completa (hasta techo)
+                
+                ✅ Techo (si hay sala encima)
+                - Blindaje: 0.5-1 mm Pb eq (factor uso bajo)
+                
+                ✅ Puertas
+                - Blindaje: 2 mm Pb eq
+                - Cierre hermético
+                - Marco plomado
+                """)
+            
+            st.markdown("""
+            **Sala de Control**:
+            - Biombo plomado: 2 mm Pb eq
+            - Visor: Vidrio plomado 2 mm Pb eq (40×40 cm mínimo)
+            - Visibilidad completa del paciente
+            - Distancia mínima: 2 m del tubo
+            - Intercom bidireccional
+            """)
+            
+            st.markdown("""
+            **Señalización y Seguridad**:
+            - 🚨 Luz de aviso roja "RAYOS X" en puertas
+            - ⚠️ Señal trébol radiación en accesos
+            - 🔴 Pulsador de emergencia (corta RX)
+            - 📋 Cartel identificativo de instalación
+            - 🚪 Apertura de puertas desde interior sin llave
+            """)
+            
+            st.markdown("""
+            **Equipamiento adicional**:
+            - Delantales plomados (0.5 mm Pb eq) - mínimo 2
+            - Protecciones gonadales (adulto y pediátrico)
+            - Protección tiroidea
+            - Colimador luminoso calibrado
+            - Dosímetro de área (opcional pero recomendado)
+            """)
+            
+        elif facility_type == "Sala de Fluoroscopia":
+            st.markdown("""
+            #### Requisitos Específicos para Fluoroscopia
+            
+            ⚠️ **Mayor riesgo de exposición** - Requisitos más estrictos
+            """)
+            
+            fluoro_col1, fluoro_col2 = st.columns(2)
+            
+            with fluoro_col1:
+                st.warning("""
+                **Blindaje Reforzado**:
+                
+                - Paredes: **2.5-3 mm Pb eq** (todas)
+                - Puertas: **2.5 mm Pb eq**
+                - Visor control: **2.5 mm Pb eq**
+                - Suelo/techo: **2 mm Pb eq** mínimo
+                
+                **Protecciones en Sala**:
+                
+                - Faldones plomados en mesa (obligatorio)
+                - Mamparas suspendidas (techo)
+                - Cortinas plomadas laterales
+                - Todos mínimo 0.5 mm Pb eq
+                """)
+                
+            with fluoro_col2:
+                st.error("""
+                **Protección Personal Obligatoria**:
+                
+                - Delantal 0.5 mm Pb eq (uso continuo)
+                - Protección tiroidea (obligatoria)
+                - Gafas plomadas 0.5 mm Pb eq (¡OBLIGATORIAS!)
+                - Guantes plomados si manos cerca campo
+                
+                **Dosimetría Reforzada**:
+                
+                - Dosímetro cuerpo (bajo delantal)
+                - Dosímetro adicional (sobre delantal) recomendado
+                - Dosímetro de anillo si procedente
+                - Lectura mensual obligatoria
+                """)
+            
+            st.info("""
+            **Equipamiento Específico**:
+            
+            - Modo pulsado (obligatorio en equipos nuevos)
+            - Control automático dosis (CAD)
+            - Registro de dosis por procedimiento
+            - Última imagen guardada (LIH)
+            - Colimación automática
+            - Filtros adicionales (Cu)
+            """)
+            
+        elif facility_type == "Sala de TC":
+            st.success("""
+            #### Ventajas del TC en Protección Radiológica
+            
+            ✅ **Exposición ocupacional mínima**:
+            - Personal NUNCA en sala durante escaneo
+            - Sala de control completamente separada
+            - Muy bajo riesgo para técnicos
+            
+            **Blindaje típico** (120-140 kVp):
+            - Paredes: 2-2.5 mm Pb eq
+            - Puerta: 2 mm Pb eq
+            - Visor: 2 mm Pb eq
+            - Laberinto en entrada (reduce blindaje puerta)
+            
+            **Características de Sala**:
+            
+            📏 **Dimensiones**:
+            - Mínimo 25-30 m² (depende del gantry)
+            - Altura: 2.7-3.0 m (paso de camilla alta)
+            
+            🔧 **Requisitos técnicos**:
+            - Climatización reforzada (calor del equipo)
+            - Suelo reforzado (equipo muy pesado: 1-3 ton)
+            - Instalación eléctrica dedicada
+            - Sistema de inyección de contraste
+            
+            🛡️ **Protección del paciente**:
+            - Colimación automática estricta
+            - Control automático exposición (AEC)
+            - Protocolos pediátricos específicos
+            - Registro de dosis (obligatorio)
+            - DRL (Diagnostic Reference Levels)
+            
+            ℹ️ **Sala de control**:
+            - Completamente aislada
+            - Visión directa de la sala
+            - Comunicación bidireccional
+            - Monitor de vídeo del paciente
+            - Acceso fácil en emergencias
+            """)
+            
+        elif facility_type == "Sala de Mamografía":
+            st.markdown("""
+            #### Particularidades de Mamografía
+            
+            🟣 **Energías muy bajas** (25-35 kVp) → Blindaje más sencillo
+            """)
+            
+            mamo_col1, mamo_col2 = st.columns(2)
+            
+            with mamo_col1:
+                st.info("""
+                **Blindaje Reducido**:
+                
+                - Paredes: **0.5-1 mm Pb eq** (suficiente)
+                - Puerta: **0.5 mm Pb eq**
+                - Visor: **0.5 mm Pb eq**
+                - Hormigón estándar puede ser suficiente
+                
+                **Ventajas**:
+                
+                ✅ Menor coste de blindaje
+                ✅ Menor peso estructural
+                ✅ Más flexible en ubicación
+                ✅ Retrofitting más sencillo
+                """)
+                
+            with mamo_col2:
+                st.warning("""
+                **Consideraciones Especiales**:
+                
+                - Programas de screening (alto volumen)
+                - Cálculo con carga alta
+                - Compresión = Repeticiones (optimizar)
+                - Calidad de imagen crítica (↓dosis difícil)
+                
+                **Control de Calidad Estricto**:
+                
+                - Pruebas diarias (phantom)
+                - Calibración semestral
+                - Mantenimiento preventivo
+                - Registro exhaustivo
+                """)
+            
+            st.success("""
+            **Protección de la Paciente**:
+            
+            - ⚠️ Verificar embarazo (mujeres <50 años)
+            - Técnica optimizada (compresión adecuada)
+            - kVp mínimo necesario
+            - Rejilla de alta frecuencia
+            - Filtros específicos (Mo, Rh)
+            - AGD (Average Glandular Dose) <2.5 mGy
+            
+            **Protección del Personal**:
+            
+            - Exposición ocupacional muy baja
+            - Técnico tras biombo siempre
+            - Delantal no necesario habitualmente
+            - Dosimetría estándar suficiente
+            """)
+            
+        else:  # Radiología Dental
+            st.markdown("""
+            #### Radiología Dental - Casos Especiales
+            
+            🦷 **Características únicas** del entorno dental
+            """)
+            
+            dental_col1, dental_col2 = st.columns(2)
+            
+            with dental_col1:
+                st.info("""
+                **Intraoral (periapical, bite-wing)**:
+                
+                📏 Dimensiones:
+                - Sala pequeña: 6-9 m² suficiente
+                - Puede ser gabinete polivalente
+                
+                🛡️ Blindaje:
+                - Paredes: 1-1.5 mm Pb eq (60-70 kVp)
+                - Puerta: 1 mm Pb eq
+                - A veces: blindaje parcial (hasta 2m)
+                
+                👤 Técnico:
+                - Distancia mínima: 2 m
+                - Ángulo 90-135° respecto haz
+                - Tras biombo si disponible
+                - O fuera de sala
+                """)
+                
+            with dental_col2:
+                st.info("""
+                **Panorámica / CBCT**:
+                
+                📏 Dimensiones:
+                - 8-12 m² recomendado
+                - Espacio para rotación equipo
+                
+                🛡️ Blindaje:
+                - Panorámica: Similar intraoral
+                - CBCT: Como RX convencional (2 mm Pb eq)
+                
+                ⚠️ CBCT (Cone Beam CT):
+                - Mayor volumen irradiado
+                - Dosis mayor (0.1-0.5 mSv)
+                - Justificación estricta
+                - Protocolos optimizados
+                """)
+            
+            st.warning("""
+            **Particularidades del entorno dental**:
+            
+            ⚠️ **Riesgos específicos**:
+            - Múltiples exposiciones por sesión (serie periapical: 4-18 Rx)
+            - Sujeción de película por paciente (buena práctica) o asistente (EVITAR)
+            - Espacios pequeños → Difícil mantener distancia
+            
+            ✅ **Soluciones**:
+            - Posicionadores de película (sin sujeción manual)
+            - Colimación rectangular (reduce área 60%)
+            - Sensores digitales (reducen dosis 50-80%)
+            - Técnico fuera de sala o tras biombo
+            - Dosimetría si >100 Rx/semana
+            
+            📋 **Regulación específica**:
+            - Puede no requerir supervisor de PR (instalación tipo II)
+            - Control de calidad simplificado
+            - Pero: Normativa de protección igual de estricta
+            """)
+        
+        # Common elements for all facilities
+        st.markdown("---")
+        st.markdown("### 🔍 Verificación Post-Instalación")
+        
+        verification_col1, verification_col2 = st.columns(2)
+        
+        with verification_col1:
+            st.markdown("""
+            #### Pruebas Obligatorias
+            
+            **Antes de uso clínico**:
+            
+            1. ✅ **Estudio de blindajes**
+               - Medidas con detector calibrado
+               - Carga de trabajo máxima
+               - Todos los puntos críticos
+               - Informe por experto cualificado
+            
+            2. ✅ **Pruebas de aceptación**
+               - Fabricante o servicio técnico
+               - Verificar especificaciones
+               - Seguridades funcionales
+               - Calibración inicial
+            
+            3. ✅ **Estado de referencia**
+               - Control de calidad completo
+               - Establece valores de referencia
+               - Por física médica
+               - Base para controles periódicos
+            """)
+            
+        with verification_col2:
+            st.markdown("""
+            #### Controles Periódicos
+            
+            **Mantenimiento de la protección**:
+            
+            📅 **Diario** (TSID):
+            - Inspección visual equipos
+            - Luces de aviso funcionando
+            - Intercom operativo
+            
+            📅 **Mensual** (TSID + Supervisor):
+            - Integridad de blindajes
+            - Puertas y cierres
+            - Protecciones plomadas (grietas)
+            
+            📅 **Anual** (Experto + Física Médica):
+            - Control de calidad completo
+            - Verificación de blindajes
+            - Actualización del estudio
+            - Informe para CSN
+            """)
+        
+        # Layout best practices
+        st.markdown("---")
+        st.markdown("### 💡 Mejores Prácticas en Distribución")
+        
+        st.success("""
+        **Principios de diseño óptimo**:
+        
+        1. 🚪 **Accesos**:
+           - Evitar puertas directas a zonas públicas
+           - Laberintos reducen blindaje de puertas
+           - Doble puerta en zonas de alto tráfico
+           - Apertura hacia exterior (evacuación)
+        
+        2. 📏 **Distancias**:
+           - Máxima distancia entre sala y áreas sensibles
+           - Considerar vertical (pisos superiores/inferiores)
+           - Zona de espera NO adyacente a pared primaria
+           - Oficinas administrativas alejadas
+        
+        3. 🏗️ **Agrupación**:
+           - Agrupar salas de RX (optimiza blindajes)
+           - Áreas controladas continuas (simplifica gestión)
+           - Servicios comunes centralizados
+           - Vestuarios y dosimetría cerca
+        
+        4. 🔄 **Flujos**:
+           - Separar flujo pacientes / personal
+           - Evitar cruces innecesarios
+           - Circuito claro: espera → sala → recuperación → salida
+           - Acceso equipos/materiales independiente
+        
+        5. 🎯 **Futuro**:
+           - Prever ampliaciones
+           - Flexibilidad para cambio de equipos
+           - Instalaciones sobredimensionadas (eléctrica, clima)
+           - Blindajes genéricos (no solo para equipo actual)
+        """)
+        
+        # Common mistakes
+        st.markdown("---")
+        st.markdown("### ⚠️ Errores Comunes a Evitar")
+        
+        mistake_col1, mistake_col2 = st.columns(2)
+        
+        with mistake_col1:
+            st.error("""
+            **En diseño**:
+            
+            ❌ No considerar dispersión
+            ❌ Olvidar blindaje de suelo/techo
+            ❌ Ventanas sin protección
+            ❌ Marcos de puertas no plomados
+            ❌ Cajas eléctricas sin blindar
+            ❌ Conductos sin laberinto
+            ❌ No prever carga estructural (plomo pesa)
+            ❌ Sala muy pequeña (imposible mantener distancia)
+            """)
+            
+        with mistake_col2:
+            st.error("""
+            **En instalación**:
+            
+            ❌ Juntas mal selladas
+            ❌ Solapamientos insuficientes
+            ❌ Fijaciones inadecuadas (plomo se deforma)
+            ❌ No proteger durante obra (daños)
+            ❌ No verificar post-instalación
+            ❌ No documentar (planos as-built)
+            ❌ Señalización incorrecta/insuficiente
+            ❌ No formar al personal antes del uso
+            """)
+        
+        st.markdown("---")
+        st.info("""
+        💡 **Consejo final**: El diseño de una instalación radiológica debe involucrar desde el inicio a:
+        
+        - Experto en protección radiológica cualificado
+        - Arquitecto con experiencia en instalaciones sanitarias
+        - Ingeniero estructural (cargas)
+        - Radiólogos/técnicos (flujos de trabajo)
+        - Servicio de mantenimiento (accesibilidad)
+        - Responsable de compras (presupuesto realista)
+        
+        **Un buen diseño inicial ahorra problemas y costes futuros.**
+        """)
+    
+    # ============================================
+    # SECTION 5: DIAGNOSTIC REFERENCE LEVELS (DRL)
+    # ============================================
+    elif protection_section == "📈 Niveles de Referencia (DRL)":
+        st.subheader("📈 Niveles de Referencia Diagnósticos (DRL)")
+        
+        st.markdown("""
+        Los Diagnostic Reference Levels (DRL) son herramientas de optimización para 
+        comparar las dosis de tu centro con estándares nacionales/internacionales.
+        """)
+        
+        # Explanation
+        st.info("""
+        ### ¿Qué son los DRL?
+        
+        **NO son**:
+        - ❌ Límites de dosis (no son obligatorios estrictamente)
+        - ❌ Valores óptimos (son valores altos del percentil 75)
+        - ❌ Aplicables a pacientes individuales
+        
+        **SÍ son**:
+        - ✅ Herramienta de **optimización**
+        - ✅ Valores de **referencia** para comparación
+        - ✅ Basados en **buenas prácticas** (percentil 75)
+        - ✅ Aplicables a **grupos de pacientes** estándar
+        - ✅ **Indicadores** de que algo puede mejorarse si se superan
+        
+        **Principio**: Si tu centro supera sistemáticamente los DRL, debes:
+        1. Investigar las causas
+        2. Optimizar protocolos
+        3. Formar al personal
+        4. Revisar equipos
+        5. Documentar acciones
+        """)
+        
+        # DRL comparison tool
+        st.markdown("---")
+        st.markdown("### 🔍 Comparador de Dosis con DRL")
+        
+        drl_col1, drl_col2 = st.columns(2)
+        
+        with drl_col1:
+            st.markdown("#### Selecciona Exploración")
+            exam_type = st.selectbox(
+                "Tipo de examen",
+                ["Tórax PA", "Tórax LAT", "Abdomen AP", "Pelvis AP", "Columna Lumbar AP", 
+                 "Columna Lumbar LAT", "Cráneo AP/PA", "Mamografía", "TC Cráneo", "TC Tórax", "TC Abdomen"]
+            )
+            
+            patient_type = st.selectbox(
+                "Tipo de paciente",
+                ["Adulto estándar (70 kg)", "Pediátrico (5 años)", "Pediátrico (10 años)"]
+            )
+            
+        with drl_col2:
+            st.markdown("#### Datos de Tu Centro")
+            
+            if "TC" in exam_type:
+                your_dose_metric = "CTDIvol (mGy)"
+                your_dose = st.number_input(your_dose_metric, 0.0, 100.0, 10.0, 0.1)
+                your_dlp = st.number_input("DLP (mGy·cm)", 0.0, 2000.0, 500.0, 10.0)
+            else:
+                your_dose_metric = "Dosis entrada (mGy)" if "Mamografía" not in exam_type else "AGD (mGy)"
+                your_dose = st.number_input(your_dose_metric, 0.0, 20.0, 2.0, 0.1)
+        
+        # DRL values (Spain/Europe - approximate values)
+        DRL_VALUES = {
+            "Tórax PA": {"adulto": {"entrada": 0.3, "efectiva": 0.02}, "pediátrico_5": {"entrada": 0.1}, "pediátrico_10": {"entrada": 0.15}},
+            "Tórax LAT": {"adulto": {"entrada": 1.5, "efectiva": 0.04}},
+            "Abdomen AP": {"adulto": {"entrada": 10.0, "efectiva": 0.7}, "pediátrico_5": {"entrada": 2.0}, "pediátrico_10": {"entrada": 4.0}},
+            "Pelvis AP": {"adulto": {"entrada": 10.0, "efectiva": 0.7}},
+            "Columna Lumbar AP": {"adulto": {"entrada": 10.0, "efectiva": 0.7}},
+            "Columna Lumbar LAT": {"adulto": {"entrada": 30.0, "efectiva": 1.3}},
+            "Cráneo AP/PA": {"adulto": {"entrada": 5.0, "efectiva": 0.07}},
+            "Mamografía": {"adulto": {"AGD": 2.5}},
+            "TC Cráneo": {"adulto": {"CTDIvol": 60.0, "DLP": 1000, "efectiva": 2.0}},
+            "TC Tórax": {"adulto": {"CTDIvol": 15.0, "DLP": 600, "efectiva": 7.0}},
+            "TC Abdomen": {"adulto": {"CTDIvol": 15.0, "DLP": 700, "efectiva": 10.0}}
+        }
+        
+        # Get applicable DRL
+        patient_key = "adulto" if "estándar" in patient_type else "pediátrico_5" if "5 años" in patient_type else "pediátrico_10"
+        
+        if exam_type in DRL_VALUES and patient_key in DRL_VALUES[exam_type]:
+            drl_data = DRL_VALUES[exam_type][patient_key]
+            
+            if "TC" in exam_type:
+                drl_value = drl_data.get("CTDIvol", 0)
+                drl_dlp = drl_data.get("DLP", 0)
+                metric_name = "CTDIvol"
+            elif "Mamografía" in exam_type:
+                drl_value = drl_data.get("AGD", 0)
+                metric_name = "AGD"
+            else:
+                drl_value = drl_data.get("entrada", 0)
+                metric_name = "Dosis entrada"
+            
+            # Compare
+            percentage_of_drl = (your_dose / drl_value * 100) if drl_value > 0 else 0
+            
+            # Display results
+            st.markdown("---")
+            st.markdown("### 📊 Análisis Comparativo")
+            
+            comp_col1, comp_col2, comp_col3 = st.columns(3)
+            
+            with comp_col1:
+                st.metric(
+                    "Tu Dosis",
+                    f"{your_dose:.2f} {'mGy' if 'mGy' in your_dose_metric else 'mGy'}",
+                    help="Dosis típica en tu centro para este examen"
+                )
+                
+            with comp_col2:
+                st.metric(
+                    "DRL (España/EU)",
+                    f"{drl_value:.2f} {'mGy' if 'mGy' in your_dose_metric else 'mGy'}",
+                    help="Nivel de referencia diagnóstico (percentil 75)"
+                )
+                
+            with comp_col3:
+                delta_text = f"{percentage_of_drl - 100:.1f}%" if percentage_of_drl > 100 else f"{100 - percentage_of_drl:.1f}%"
+                st.metric(
+                    "% del DRL",
+                    f"{percentage_of_drl:.1f}%",
+                    delta=delta_text if percentage_of_drl > 100 else f"-{delta_text}",
+                    delta_color="inverse"
+                )
+            
+            # Visual comparison
+            fig_drl = go.Figure()
+            
+            fig_drl.add_trace(go.Bar(
+                x=["Tu Centro", "DRL"],
+                y=[your_dose, drl_value],
+                marker=dict(color=['red' if your_dose > drl_value else 'green', 'blue']),
+                text=[f"{your_dose:.2f}", f"{drl_value:.2f}"],
+                textposition='auto'
+            ))
+            
+            fig_drl.update_layout(
+                title=f"Comparación con DRL: {exam_type}",
+                yaxis_title=metric_name + " (mGy)",
+                height=400,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_drl, use_container_width=True)
+            
+            # Interpretation
+            st.markdown("### 💡 Interpretación")
+            
+            if percentage_of_drl < 50:
+                st.success(f"""
+                ✅ **Excelente - Muy por debajo del DRL** ({percentage_of_drl:.0f}%)
+                
+                Tu centro está aplicando técnicas muy optimizadas. Estás en el rango de mejores prácticas.
+                
+                **Mantén**:
+                - Protocolos actuales
+                - Formación continua del personal
+                - Control de calidad riguroso
+                
+                **Considera**:
+                - Compartir tu protocolo con otros centros
+                - Verificar que calidad diagnóstica es adecuada (no sub-optimizar)
+                """)
+                
+            elif percentage_of_drl < 75:
+                st.info(f"""
+                ℹ️ **Bueno - Por debajo del DRL** ({percentage_of_drl:.0f}%)
+                
+                Tu centro está dentro de buenas prácticas. La mayoría de centros están en este rango.
+                
+                **Mantén**:
+                - Vigilancia de dosis
+                - Revisión periódica de protocolos
+                
+                **Considera**:
+                - Pequeñas optimizaciones aún posibles
+                - Benchmarking con centros de referencia
+                """)
+                
+            elif percentage_of_drl <= 100:
+                st.warning(f"""
+                ⚠️ **Atención - Cerca del DRL** ({percentage_of_drl:.0f}%)
+                
+                Tu centro está cerca o en el DRL. Es el momento de revisar y optimizar.
+                
+                **Acciones recomendadas**:
+                1. Revisar protocolos (kVp, mAs, colimación)
+                2. Verificar calibración de equipos
+                3. Formación específica del personal
+                4. Control de calidad exhaustivo
+                5. Considerar actualización de equipos si son antiguos
+                """)
+                
+            else:  # > 100%
+                st.error(f"""
+                🚨 **Acción Requerida - Superas el DRL** ({percentage_of_drl:.0f}%)
+                
+                Tu centro supera el nivel de referencia. Es **obligatorio** investigar y optimizar.
+                
+                **Acciones OBLIGATORIAS** (según normativa):
+                
+                1. 📋 **Análisis de causas**:
+                   - ¿Equipos descalibrados?
+                   - ¿Protocolos inadecuados?
+                   - ¿Falta de formación?
+                   - ¿Pacientes atípicos? (muy obesos, patología especial)
+                
+                2. 🔧 **Optimización**:
+                   - Ajustar parámetros técnicos
+                   - Revisar técnicas de posicionamiento
+                   - Verificar AEC si disponible
+                   - Considerar filtros adicionales
+                
+                3. 📚 **Formación**:
+                   - Actualización TSID
+                   - Radiólogos informados
+                   - Protocolos escritos y accesibles
+                
+                4. 🔍 **Seguimiento**:
+                   - Medición continua post-optimización
+                   - Documentar mejoras
+                   - Informe a supervisor de PR
+                
+                5. 📊 **Documentación**:
+                   - Registrar acciones tomadas
+                   - Evidencia de mejora
+                   - Para auditorías/inspecciones
+                
+                ⚠️ **Nota importante**: Superar DRL NO es ilegal per se, pero requiere justificación 
+                documentada y demostración de esfuerzos de optimización.
+                """)
+            
+            # Additional DLP comparison for CT
+            if "TC" in exam_type and drl_dlp > 0:
+                st.markdown("---")
+                st.markdown("#### Comparación DLP (Producto Dosis-Longitud)")
+                
+                percentage_dlp = (your_dlp / drl_dlp * 100) if drl_dlp > 0 else 0
+                
+                dlp_col1, dlp_col2, dlp_col3 = st.columns(3)
+                
+                with dlp_col1:
+                    st.metric("Tu DLP", f"{your_dlp:.0f} mGy·cm")
+                with dlp_col2:
+                    st.metric("DRL DLP", f"{drl_dlp:.0f} mGy·cm")
+                with dlp_col3:
+                    st.metric("% DRL", f"{percentage_dlp:.0f}%")
+                
+                st.caption("""
+                **DLP** (Dose-Length Product) considera la longitud escaneada.
+                Es un mejor indicador de dosis total que CTDIvol solo.
+                """)
+        
+        else:
+            st.warning("DRL no disponible para esta combinación de examen y paciente")
+        
+        # DRL table reference
+        st.markdown("---")
+        st.markdown("### 📋 Tabla de Referencia DRL (España/Europa)")
+        
+        drl_table_data = {
+            "Exploración": [
+                "Tórax PA", "Abdomen AP", "Pelvis AP", "Columna Lumbar LAT",
+                "Cráneo", "Mamografía (2 proyecciones)", "TC Cráneo", "TC Tórax", "TC Abdomen"
+            ],
+            "DRL Adulto": [
+                "0.3 mGy", "10 mGy", "10 mGy", "30 mGy",
+                "5 mGy", "2.5 mGy (AGD)", "60 mGy (CTDI)", "15 mGy (CTDI)", "15 mGy (CTDI)"
+            ],
+            "DLP (TC)": [
+                "-", "-", "-", "-", "-", "-", "1000 mGy·cm", "600 mGy·cm", "700 mGy·cm"
+            ],
+            "Fuente": [
+                "EU RP 180", "EU RP 180", "EU RP 180", "EU RP 180",
+                "EU RP 180", "EU RP 180", "EU RP 180", "EU RP 180", "EU RP 180"
+            ]
+        }
+        
+        df_drl = pd.DataFrame(drl_table_data)
+        st.dataframe(df_drl, use_container_width=True)
+        
+        st.caption("""
+        📌 **Fuente**: European Commission RP 180 (2014) - Diagnostic Reference Levels in Thirty-six European Countries
+        
+        ⚠️ **Nota**: Estos son valores orientativos. Consultar DRL nacionales actualizados en documentos oficiales del CSN.
+        """)
+        
+        # Optimization strategies
+        st.markdown("---")
+        st.markdown("### 🎯 Estrategias de Optimización")
+        
+        optim_col1, optim_col2 = st.columns(2)
+        
+        with optim_col1:
+            st.markdown("""
+            #### Para Radiología Convencional
+            
+            **1. Técnica**:
+            - ✅ Aplicar regla del 15% (↑kVp, ↓mAs)
+            - ✅ Colimación estricta
+            - ✅ Usar AEC si disponible
+            - ✅ Evitar repeticiones (técnica correcta primera vez)
+            
+            **2. Equipamiento**:
+            - ✅ Filtración adicional (Cu)
+            - ✅ Digital en lugar de analógico
+            - ✅ Generadores alta frecuencia
+            - ✅ Rejillas apropiadas (ratio correcto)
+            - ✅ Mantenimiento preventivo
+            
+            **3. Personal**:
+            - ✅ Formación continua
+            - ✅ Protocolos escritos visibles
+            - ✅ Feedback regular (dosis registradas)
+            - ✅ Cultura de optimización
+            
+            **4. Paciente**:
+            - ✅ Posicionamiento óptimo
+            - ✅ Inmovilización adecuada
+            - ✅ Preparación correcta
+            - ✅ Compresión suave (abdomen)
+            """)
+            
+        with optim_col2:
+            st.markdown("""
+            #### Para TC
+            
+            **1. Protocolos**:
+            - ✅ Modulación de corriente (AEC)
+            - ✅ Rango de escaneo mínimo necesario
+            - ✅ Pitch optimizado
+            - ✅ kVp según indicación (bajo para yodo)
+            - ✅ Reconstructión iterativa
+            
+            **2. Tecnología**:
+            - ✅ Equipos modernos (iterativa, dual-energy)
+            - ✅ Algoritmos de reducción de dosis
+            - ✅ Filtros de configuración (bow-tie)
+            - ✅ Actualización de software
+            
+            **3. Indicación**:
+            - ✅ Justificación estricta
+            - ✅ Evitar TC "rutinarios"
+            - ✅ Considerar alternativas (MRI, US)
+            - ✅ Protocolos específicos por indicación
+            
+            **4. Pediátrico**:
+            - ✅ Protocolos específicos obligatorios
+            - ✅ Reducción dosis 50-80% vs adulto
+            - ✅ Justificación aún más estricta
+            - ✅ Alternative imaging first
+            """)
+        
+        # DRL monitoring program
+        st.markdown("---")
+        st.markdown("### 📊 Programa de Monitorización de Dosis")
+        
+        st.info("""
+        **Cómo implementar un programa DRL en tu centro**:
+        
+        **Paso 1: Recopilación de Datos**
+        - Registrar dosis de TODOS los exámenes (DICOM dose reports)
+        - Sistema informático automatizado (PACS, RIS)
+        - Mínimo 20-50 pacientes por protocolo
+        - Pacientes estándar (excluir extremos)
+        
+        **Paso 2: Análisis**
+        - Calcular percentiles (25, 50, 75)
+        - Tu DRL local = percentil 75
+        - Comparar con DRL nacionales/europeos
+        - Identificar outliers (valores extremos)
+        
+        **Paso 3: Evaluación**
+        - ¿Tu P75 > DRL nacional? → Investigar
+        - ¿Gran variabilidad? → Falta estandarización
+        - ¿Muchos outliers? → Problemas técnicos o formación
+        
+        **Paso 4: Optimización**
+        - Ajustar protocolos donde sea necesario
+        - Formación específica
+        - Revisión equipos
+        - Documentar cambios
+        
+        **Paso 5: Re-evaluación**
+        - Repetir medidas post-optimización
+        - Verificar reducción de dosis
+        - Mantener calidad diagnóstica
+        - Documentar mejoras
+        
+        **Periodicidad**: Anual (mínimo) o tras cambios significativos
+        """)
+        
+        # Theory expander
+        with st.expander("📚 Teoría: Niveles de Referencia Diagnósticos"):
+            st.markdown("""
+            ## 📈 Fundamentos de los DRL
+            
+            ### Historia y Origen
+            
+            **Introducción**: ICRP 73 (1996)
+            - Concepto: "Investigation levels" → "Diagnostic Reference Levels"
+            - Objetivo: Identificar niveles inusualmente altos de dosis
+            - NO son límites, son herramientas de optimización
+            
+            **Evolución**:
+            - ICRP 73 (1996): Introducción del concepto
+            - ICRP 103 (2007): Refuerzo y expansión
+            - Directiva 2013/59/EURATOM: Obligatoriedad en EU
+            - ICRP 135 (2017): Actualización y nuevas modalidades
+            
+            ### Marco Legal (España)
+            
+            **Real Decreto 1085/2009**:
+            - Artículo 9: Obligación de establecer y usar DRL
+            - Titular debe garantizar su aplicación
+            - Supervisión por experto en PR
+            
+            **Real Decreto 783/2001**:
+            - Marco general de protección radiológica
+            - Principio de optimización (ALARA)
+            - DRL como herramienta de optimización
+            
+            **Guía CSN 5.10**:
+            - Orientación práctica
+            - Valores de referencia españoles
+            - Metodología de implementación
+            
+            ### Metodología de Establecimiento
+            
+            **Nivel Nacional/Regional**:
+            
+            1. **Recopilación de datos**:
+               - Encuesta a centros representativos
+               - Mínimo 10-20 centros
+               - Pacientes estándar definidos
+               - Equipos en buen estado
+            
+            2. **Análisis estadístico**:
+               - Calcular percentiles de distribución
+               - **Percentil 75** como DRL
+               - No media (sesgo por valores altos)
+               - No percentil 50 (sería "típico", no "alto")
+            
+            3. **Publicación**:
+               - Documentos oficiales (CSN, EU)
+               - Accesible a todos los centros
+               - Actualización periódica (3-5 años)
+            
+            **Nivel Local (tu centro)**:
+            
+            1. **DRL local = Percentil 75 de tu centro**
+            2. Comparar con DRL nacional
+            3. Si P75 local > DRL nacional → Optimizar
+            4. Objetivo: Reducir P75 local por debajo de DRL nacional
+            
+            ### Magnitudes Dosimétricas Usadas
+            
+            #### Radiología Convencional
+            
+            **Dosis Entrada en Superficie (ESD)**:
+            - Medida en superficie de entrada del paciente
+            - Incluye radiación dispersa retrógrada
+            - Fácil de medir (TLD, cámara de ionización)
+            - Usado en la mayoría de DRL de Rx simple
+            
+            **Producto Dosis-Área (DAP/PKA)**:
+            - Integral de dosis sobre área del haz
+            - Unidades: Gy·cm² o cGy·cm²
+            - Medido automáticamente (cámara en colimador)
+            - Mejor para fluoroscopia y procedimientos largos
+            
+            #### Tomografía Computarizada
+            
+            **CTDIvol** (CT Dose Index volume):
+            - Dosis promedio en volumen escaneado
+            - Para un único corte o serie
+            - Unidades: mGy
+            - Mostrado en consola del TC
+            
+            **DLP** (Dose-Length Product):
+            - CTDIvol × Longitud escaneada
+            - Unidades: mGy·cm
+            - Mejor correlación con riesgo
+            - Usado para calcular dosis efectiva
+            
+            **SSDE** (Size-Specific Dose Estimate):
+            - Ajusta CTDIvol según tamaño del paciente
+            - Más preciso (phantom estándar no representa a todos)
+            - Emergente como métrica preferida
+            
+            #### Mamografía
+            
+            **AGD** (Average Glandular Dose):
+            - Dosis promedio al tejido glandular
+            - Calculada (no medida directamente)
+            - Basada en kVp, HVL, compresión, composición mama
+            - Unidades: mGy
+            - Métrica estándar en mamografía
+            
+            ### Paciente Estándar
+            
+            **Definición necesaria para comparabilidad**:
+            
+            **Adulto estándar**:
+            - Peso: 70 kg
+            - Altura: 170 cm
+            - IMC: 24 kg/m²
+            - Espesores específicos según región
+            
+            **Pediátrico**:
+            - Grupos de edad: 0, 1, 5, 10, 15 años
+            - O grupos de peso
+            - DRL específicos (mucho menores que adulto)
+            
+            **Exclusiones**:
+            - Pacientes con IMC extremo (<18 o >30)
+            - Patologías que requieren parámetros especiales
+            - Prótesis metálicas extensas
+            - Estudios no estándar
+            
+            ### Interpretación Estadística
+            
+            **¿Por qué percentil 75?**
+            
+            - No demasiado alto (99% sería muy permisivo)
+            - No demasiado bajo (50% no indica "alto")
+            - 75% = "Cuartil superior" = Límite de lo aceptable
+            - El 25% más alto debe investigarse
+            
+            **Distribución típica**:
+            """)
+            
+            st.latex(r"\text{P25} < \text{P50 (mediana)} < \text{P75 (DRL)} < \text{P95}")
+            
+            st.markdown("""
+            **Interpretación**:
+            - Si estás en P25: Excelente (pero verifica calidad diagnóstica)
+            - Si estás en P50: Bueno (típico)
+            - Si estás en P75 (DRL): Límite aceptable
+            - Si estás >P75: Debes optimizar
+            
+            ### Acciones según Resultado
+            
+            **Tu dosis < DRL**:
+            - ✅ Mantener protocolo
+            - ✅ Verificar calidad diagnóstica adecuada
+            - ✅ Documentar para auditorías
+            - ✅ Considerar compartir protocolo
+            
+            **Tu dosis ≈ DRL** (90-110%):
+            - ℹ️ Monitorización estrecha
+            - ℹ️ Pequeñas optimizaciones
+            - ℹ️ Revisión protocolo preventiva
+            
+            **Tu dosis > DRL** (>110%):
+            - ⚠️ Investigación obligatoria
+            - ⚠️ Análisis de causas
+            - ⚠️ Plan de optimización
+            - ⚠️ Documentación completa
+            - ⚠️ Seguimiento post-optimización
+            - ⚠️ Informe a autoridad si persiste
+            
+            **Tu dosis >> DRL** (>150%):
+            - 🚨 Acción inmediata
+            - 🚨 Suspender protocolo hasta resolver
+            - 🚨 Investigación exhaustiva
+            - 🚨 Posible problema grave (equipo, formación)
+            - 🚨 Notificación a CSN recomendada
+            
+            ### Limitaciones de los DRL
+            
+            **NO sustituyen el juicio clínico**:
+            - Paciente específico puede requerir dosis mayor
+            - Indicación compleja justifica superación
+            - Calidad diagnóstica prioritaria
+            
+            **NO son aplicables a**:
+            - Procedimientos intervencionistas complejos
+            - Pacientes con características extremas
+            - Investigación (protocolos experimentales)
+            - Emergencias vitales
+            
+            **Variabilidad**:
+            - Entre países (diferente equipamiento, prácticas)
+            - Entre centros (tecnología, formación)
+            - Temporal (equipos envejecen o se modernizan)
+            
+            ### DRL y Calidad de Imagen
+            
+            **Concepto erróneo**: "Menos dosis siempre mejor"
+            
+            **Realidad**: Debe existir balance
+            """)
+            
+            st.latex(r"\text{Dosis óptima} = \text{mín}\{\text{Dosis} : \text{Calidad diagnóstica adecuada}\}")
+            
+            st.markdown("""
+            **Sobre-optimización (dosis demasiado baja)**:
+            - Ruido excesivo
+            - Contraste insuficiente
+            - Artefactos
+            - Diagnóstico imposible o incierto
+            - Repeticiones (¡más dosis total!)
+            
+            **Por tanto**:
+            - DRL es límite superior, NO objetivo a alcanzar
+            - Objetivo: Mínima dosis compatible con calidad diagnóstica
+            - Control de calidad imagen tan importante como control dosis
+            
+            ### Futuro de los DRL
+            
+            **Tendencias emergentes**:
+            
+            1. **DRL más específicos**:
+               - Por indicación clínica (no solo anatomía)
+               - Por tecnología (iterativa vs FBP)
+               - Por tamaño paciente (SSDE en TC)
+            
+            2. **Monitorización automatizada**:
+               - Software extrae datos de DICOM automáticamente
+               - Alertas en tiempo real si >DRL
+               - Dashboard para gestión
+               - Big data y AI para benchmarking
+            
+            3. **DRL para nuevas modalidades**:
+               - CBCT (dental, intervencionismo)
+               - PET-CT
+               - Dual-energy CT
+               - Spectral imaging
+            
+            4. **Individualización**:
+               - DRL ajustados por tamaño paciente
+               - Considerar riesgo individual (edad, genética)
+               - Medicina personalizada en dosimetría
+            
+            ### Programa Nacional de DRL
+            
+            **España - Registro de dosis**:
+            - Centros deben enviar datos periódicamente
+            - CSN analiza y actualiza DRL nacionales
+            - Publicación en Guías de Seguridad
+            - Comparación con EU
+            
+            **Beneficios**:
+            - Benchmarking entre centros
+            - Identificación de mejores prácticas
+            - Detección de problemas sistémicos
+            - Base para formación y guías
+            
+            ### Conclusión Práctica
+            
+            Los DRL son:
+            - Herramienta de **optimización continua**
+            - **NO punitivos** (si superas, optimizas, no te multan)
+            - Requieren **cultura de seguridad** (reporte sin miedo)
+            - Efectivos solo con **uso consistente**
+            
+            **Tu rol como TSID**:
+            1. Conocer DRL de tu centro
+            2. Monitorizar tus técnicas
+            3. Reportar valores inusuales
+            4. Participar en optimización
+            5. Formación continua
+            
+            **Recuerda**: El objetivo final es **proteger al paciente** sin comprometer el diagnóstico.
+            """)
+    
+    # Final section summary
+    st.markdown("---")
+    st.success("""
+    ### 🎯 Puntos Clave - Protección Radiológica
+    
+    1. **ALARA es obligatorio**: Tiempo, Distancia, Blindaje - tres pilares fundamentales
+    2. **Límites de dosis**: 20 mSv/año (trabajador), 1 mSv/año (público)
+    3. **Cristalino**: Nuevo límite 20 mSv/año - Gafas plomadas obligatorias en fluoro
+    4. **Embarazo**: Declarar inmediatamente - 1 mSv al feto durante embarazo
+    5. **Dosimetría personal**: Obligatoria, individual, intransferible
+    6. **Blindajes**: Calcular correctamente - No olvidar penetraciones
+    7. **HVL**: Cada HVL reduce dosis a la mitad
+    8. **Ley inversa cuadrado**: Duplicar distancia = ¼ de dosis
+    9. **DRL**: Herramienta optimización, no límite - Investigar si superas
+    10. **Justificación + Optimización + Limitación**: Tres principios de PR
+    """)
+    
+    # Pro tips for this tab
+    st.info("""
+    ### 💡 Consejos Profesionales - Protección Radiológica
+    
+    **Para protegerte (ocupacional)**:
+    - 🚪 Sal de la sala durante exposición (radiología convencional)
+    - 📏 Mínimo 2 metros en portátiles (idealmente 3m)
+    - 🦺 Delantal + gafas + protección tiroidea en fluoroscopia (OBLIGATORIO)
+    - 📊 Revisa tu dosimetría mensualmente
+    - 🤰 Si embarazo: declarar inmediatamente
+    
+    **Para proteger al paciente**:
+    - 🎯 Justificación: ¿Es realmente necesaria la exploración?
+    - ⚙️ Optimización: Mínimos kVp/mAs compatibles con calidad
+    - ✂️ Colimación estricta: Solo área de interés
+    - 🛡️ Protecciones: Gonadal si útil y no interfiere
+    - 📋 Técnica correcta primera vez: Evitar repeticiones
+    
+    **Para cumplir normativa**:
+    - 📋 Documentación completa y actualizada
+    - 🎓 Formación específica vigente (renovar cada 5 años)
+    - 🔍 Participar en controles de calidad
+    - 📊 Conocer DRL y comparar tus técnicas
+    - ⚠️ Reportar incidentes y no conformidades
+    
+    **Cultura de seguridad**:
+    - 🗣️ Comunicación abierta sobre seguridad
+    - ❓ Preguntar sin miedo si hay dudas
+    - 📢 Reportar problemas (no punitivo)
+    - 🤝 Trabajo en equipo (PR es responsabilidad de todos)
+    - 📚 Formación continua (normativa cambia)
+    """)
+    
+    # Footer for this tab
+    st.markdown("---")
+    st.markdown("""
+    <div style='text-align: center; color: #666; font-size: 0.9em;'>
+        <p>🛡️ <strong>Tab 3: Protección Radiológica</strong> | 
+        Simulador de Física Radiológica | 
+        Formación Profesional en Imagen para el Diagnóstico</p>
+        <p>La protección radiológica no es opcional - Es tu responsabilidad profesional y legal</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+            
+            
 
 # ============================================
 # TAB 4: PARÁMETROS TÉCNICOS (to be completed)
