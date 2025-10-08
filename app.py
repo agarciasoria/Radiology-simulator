@@ -9915,7 +9915,7 @@ st.markdown("---")
 st.markdown("---")
 
 # About and credits
-footer_col1, footer_col2, footer_col3 = st.columns(3)
+footer_col1, footer_col2 = st.columns(2)
 
 with footer_col1:
     st.markdown("""
