@@ -8159,7 +8159,9 @@ with tabs[3]:
         # Visualization
         st.markdown("#### 📊 Comparación Visual")
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        fig = plt.figure(figsize=(12, 4))
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax2 = fig.add_subplot(1, 2, 2)
         
         # Bar chart comparison
         params = ['kVp', 'mAs', 'Dosis (mGy)']
@@ -8255,7 +8257,9 @@ with tabs[3]:
         intensities = inverse_square_law(100, 100, distances)
         required_mas = mas_init_dfi * (distances / dfi_init) ** 2
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        fig = plt.figure(figsize=(12, 4))
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax2 = fig.add_subplot(1, 2, 2)
         
         # Intensity vs distance
         ax1.plot(distances, intensities, 'b-', linewidth=2, label='Intensidad relativa')
@@ -8450,7 +8454,9 @@ with tabs[3]:
         # Visualization
         st.markdown("#### 📊 Factores de Ajuste por Morfología")
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        fig = plt.figure(figsize=(12, 5))
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax2 = fig.add_subplot(1, 2, 2)
         
         # Bar chart of all habitus factors
         habitus_types = ["Pediátrico\n(< 5 años)", "Niño\n(5-12 años)", "Adolescente",
@@ -8843,7 +8849,9 @@ with tabs[3]:
         snr_range = [calculate_snr_cnr(kvp_snr, m, thickness)[0] for m in mas_range]
         dose_range = [calculate_entrance_dose(kvp_snr, m) for m in mas_range]
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        fig = plt.figure(figsize=(12, 4))
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax2 = fig.add_subplot(1, 2, 2)
         
         # SNR vs mAs
         ax1.plot(mas_range, snr_range, 'b-', linewidth=2, label='SNR')
