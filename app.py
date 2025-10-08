@@ -9935,14 +9935,6 @@ with footer_col2:
     - Directiva 2013/59/EURATOM
     """)
 
-with footer_col3:
-    st.markdown("""
-    ### 🎓 Formación
-    
-    - Ciclo FP: TSID
-    - Módulo: Imagen para el Diagnóstico
-    - Contenido: Física aplicada
-    """)
 
 st.markdown("---")
 
