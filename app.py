@@ -8688,7 +8688,7 @@ with tabs[3]:
         """)
     
     with col2:
-        st.image("https://via.placeholder.com/300x300.png?text=AEC+Chambers", 
+        st.image("https://cloudberryinternational.com/cdn/shop/products/Norma301i-1_720x.png?v=1642169840", 
                 caption="Disposición típica de cámaras AEC", use_container_width=True)
         # En tu implementación real, reemplaza con una imagen real de las cámaras AEC
     
@@ -8713,77 +8713,106 @@ with tabs[3]:
     with col2:
         st.markdown("#### 🎯 Diagrama de Cámaras")
         
-        # Create simple representation
-        camera_status = []
+        # Status display
+        camera_status_text = f"**Región: {region_aec}**\n\n"
+        
         if camera_left:
-            camera_status.append("🟦 Izquierda: ACTIVA")
+            camera_status_text += "🟦 Izquierda: **ACTIVA**\n\n"
         else:
-            camera_status.append("⬜ Izquierda: Inactiva")
+            camera_status_text += "⬜ Izquierda: *Inactiva*\n\n"
             
         if camera_center:
-            camera_status.append("🟨 Central: ACTIVA")
+            camera_status_text += "🟨 Central: **ACTIVA**\n\n"
         else:
-            camera_status.append("⬜ Central: Inactiva")
+            camera_status_text += "⬜ Central: *Inactiva*\n\n"
             
         if camera_right:
-            camera_status.append("🟥 Derecha: ACTIVA")
+            camera_status_text += "🟥 Derecha: **ACTIVA**\n\n"
         else:
-            camera_status.append("⬜ Derecha: Inactiva")
+            camera_status_text += "⬜ Derecha: *Inactiva*\n\n"
         
-        st.info(f"**Región: {region_aec}**\n\n" + "\n\n".join(camera_status))
+        st.info(camera_status_text)
         
-        st.markdown("```")
-        st.markdown("     Vista desde el tubo de RX")
-        st.markdown("   ┌─────────────────────────┐")
-        st.markdown(f"   │  {'🟦' if camera_left else '⬜'}      {'🟨' if camera_center else '⬜'}      {'🟥' if camera_right else '⬜'}  │")
-        st.markdown("   │   (I)    (C)    (D)     │")
-        st.markdown("   │                         │")
-        st.markdown("   │      DETECTOR           │")
-        st.markdown("   └─────────────────────────┘")
-        st.markdown("```")
+        # Visual ASCII diagram
+        st.markdown("**Vista desde el tubo de RX (mirando hacia el paciente):**")
+        
+        left_symbol = "🟦" if camera_left else "⬜"
+        center_symbol = "🟨" if camera_center else "⬜"
+        right_symbol = "🟥" if camera_right else "⬜"
+        
+        diagram = f"""
+            ┌─────────────────────────────┐
+            │                             │
+            │    {left_symbol}      {center_symbol}      {right_symbol}        │
+            │    (I)     (C)     (D)      │
+            │                             │
+            │      ÁREA DETECTOR          │
+            │                             │
+            └─────────────────────────────┘
+            Vista inferior del Bucky
+        """
+        st.markdown(diagram)
+        
+        # Camera count
+        active_cameras = sum([camera_left, camera_center, camera_right])
+        if active_cameras == 0:
+            st.error("⚠️ **Sin cámaras activas** - No funcionará el AEC")
+        elif active_cameras == 1:
+            st.warning(f"ℹ️ **{active_cameras} cámara activa** - Uso específico")
+        else:
+            st.success(f"✅ **{active_cameras} cámaras activas**")
     
     # AEC Recommendations by region
     aec_recommendations = {
         "Tórax PA": {
             "cameras": "Izquierda + Derecha (ambos pulmones)",
-            "avoid": "⚠️ NO usar cámara central (mediastino muy denso)",
+            "cameras_correct": (True, False, True),  # left, center, right
+            "avoid": "⚠️ NO usar cámara central (mediastino muy denso - sobreexpondría pulmones)",
             "kvp": "120-125 kVp",
-            "tips": "Asegurar simetría del paciente. Centrar el tórax."
+            "tips": "Asegurar simetría del paciente. Centrar el tórax entre las cámaras."
         },
         "Tórax Lateral": {
             "cameras": "Central (o combinación según equipo)",
-            "avoid": "✅ Verificar que brazos estén elevados",
+            "cameras_correct": (False, True, False),
+            "avoid": "✅ Verificar que brazos estén elevados (no interfieran)",
             "kvp": "120-125 kVp",
-            "tips": "Mayor mAs necesario que PA. Verificar campo."
+            "tips": "Mayor mAs necesario que PA. Verificar campo incluye toda la anatomía."
         },
         "Columna Lumbar AP": {
-            "cameras": "Las 3 cámaras",
-            "avoid": "⚠️ Verificar centrado (no debe salirse del campo)",
+            "cameras": "Las 3 cámaras (distribución homogénea)",
+            "cameras_correct": (True, True, True),
+            "avoid": "⚠️ Verificar centrado (columna debe estar sobre cámara central)",
             "kvp": "75-85 kVp",
-            "tips": "Considerar morfología. Obesos pueden requerir +15 kVp."
+            "tips": "Considerar morfología. Pacientes obesos pueden requerir +15 kVp."
         },
         "Columna Lumbar Lateral": {
-            "cameras": "Central",
-            "avoid": "⚠️ Difícil con AEC - considerar técnica manual en obesos",
+            "cameras": "Solo Central",
+            "cameras_correct": (False, True, False),
+            "avoid": "⚠️ Difícil con AEC - considerar técnica manual en pacientes obesos",
             "kvp": "85-95 kVp",
-            "tips": "Flexionar rodillas. Zona muy densa."
+            "tips": "Flexionar rodillas del paciente. Zona muy densa - proyección exigente."
         },
         "Abdomen AP": {
             "cameras": "Las 3 cámaras",
-            "avoid": "✅ Verificar que vejiga esté vacía si es posible",
+            "cameras_correct": (True, True, True),
+            "avoid": "✅ Verificar que vejiga esté vacía si es posible (reduce variabilidad)",
             "kvp": "75-80 kVp",
-            "tips": "Exposición al final de espiración."
+            "tips": "Exposición al final de espiración. Densidad relativamente homogénea."
         },
         "Pelvis AP": {
             "cameras": "Las 3 cámaras",
-            "avoid": "✅ Rotación interna de pies",
+            "cameras_correct": (True, True, True),
+            "avoid": "✅ Rotación interna de pies (cuello femoral en verdadero AP)",
             "kvp": "75-80 kVp",
-            "tips": "Densidad homogénea - funciona bien con AEC."
+            "tips": "Densidad homogénea - funciona muy bien con AEC."
         }
     }
     
     if region_aec in aec_recommendations:
         rec_aec = aec_recommendations[region_aec]
+        
+        st.markdown("---")
+        st.markdown("#### 💡 Recomendaciones para esta región")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -8792,6 +8821,21 @@ with tabs[3]:
         with col2:
             st.warning(rec_aec['avoid'])
             st.markdown(f"💡 **Consejo**: {rec_aec['tips']}")
+        
+        # Check if current selection matches recommendation
+        current_selection = (camera_left, camera_center, camera_right)
+        if current_selection == rec_aec['cameras_correct']:
+            st.success("✅ **Configuración CORRECTA** - Selección óptima de cámaras para esta región")
+        else:
+            expected_left, expected_center, expected_right = rec_aec['cameras_correct']
+            st.warning(f"""
+            ⚠️ **Configuración diferente a la recomendada**
+            
+            **Configuración recomendada:**
+            - Izquierda: {'✅ Activa' if expected_left else '❌ Inactiva'}
+            - Central: {'✅ Activa' if expected_center else '❌ Inactiva'}
+            - Derecha: {'✅ Activa' if expected_right else '❌ Inactiva'}
+            """)
     
     # AEC Common Errors
     with st.expander("⚠️ Errores Comunes con AEC y Cómo Evitarlos"):
