@@ -563,13 +563,9 @@ with col1:
 
 with col2:
     st.info("""
-    **📚 Basado en el Currículo Oficial**
+
+    Este simulador cubre los siguientes temas de Física Radiológica:
     
-    Este simulador cubre contenidos del módulo:
-    
-    **"Formación de la imagen radiográfica"**
-    
-    Incluyendo:
     - Fundamentos físicos de rayos X
     - Parámetros técnicos
     - Formación y calidad de imagen
@@ -581,53 +577,7 @@ with col2:
     ✅ Perfecto para **práctica**
     """)
 
-# Module context expander
-with st.expander("📖 Sobre este Módulo Formativo", expanded=False):
-    st.markdown("""
-    ### Imagen para el Diagnóstico - Contexto Educativo
-    
-    #### 🎓 Ciclo Formativo de Grado Superior
-    
-    El Técnico Superior en Imagen para el Diagnóstico y Medicina Nuclear es un profesional 
-    sanitario especializado en la obtención de imágenes médicas mediante diferentes técnicas:
-    
-    - **Radiología Convencional** (Rayos X)
-    - **Tomografía Computarizada (TC/CT)**
-    - **Resonancia Magnética (RM/MRI)**
-    - **Medicina Nuclear**
-    - **Ultrasonidos** (en algunas comunidades)
-    
-    #### 📚 Competencias Profesionales
-    
-    Este simulador te ayuda a desarrollar competencias clave:
-    
-    1. **Competencia técnica**: Dominar los parámetros de exposición
-    2. **Competencia en protección radiológica**: Aplicar el principio ALARA
-    3. **Competencia en calidad**: Optimizar la relación calidad-dosis
-    4. **Competencia analítica**: Entender el "por qué" detrás de cada protocolo
-    
-    #### 🏥 Aplicación Práctica
-    
-    En tu trabajo diario, estos conocimientos te permitirán:
-    
-    - Seleccionar parámetros técnicos apropiados para cada exploración
-    - Adaptar técnicas a pacientes especiales (pediátricos, obesos, politraumatizados)
-    - Minimizar la dosis manteniendo calidad diagnóstica
-    - Resolver problemas técnicos (artefactos, repeticiones)
-    - Cumplir con la normativa de protección radiológica
-    - Comunicarte efectivamente con radiólogos y médicos prescriptores
-    
-    #### ⚖️ Marco Legal
-    
-    Trabajarás bajo regulación estricta:
-    
-    - **Real Decreto 1085/2009**: Instalaciones de rayos X con fines diagnósticos
-    - **Real Decreto 783/2001**: Protección sanitaria contra radiaciones ionizantes
-    - **Directiva 2013/59/EURATOM**: Normas de seguridad europeas
-    - **Guías de protocolos clínicos** de cada comunidad autónoma
-    
-    🎯 **Este simulador te prepara para aplicar estos conocimientos de forma segura y efectiva.**
-    """)
+
 
 st.markdown("---")
 
