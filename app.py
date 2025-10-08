@@ -8966,34 +8966,94 @@ with tabs[3]:
         snr_range = [calculate_snr_cnr(kvp_snr, m, thickness)[0] for m in mas_range]
         dose_range = [calculate_entrance_dose(kvp_snr, m) for m in mas_range]
         
-        fig = plt.figure(figsize=(12, 4))
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
+        col_snr1, col_snr2 = st.columns(2)
         
-        # SNR vs mAs
-        ax1.plot(mas_range, snr_range, 'b-', linewidth=2, label='SNR')
-        ax1.axhline(30, color='green', linestyle='--', alpha=0.7, label='Objetivo (SNR=30)')
-        ax1.axvline(mas_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({mas_snr} mAs)')
-        ax1.scatter([mas_snr], [snr], s=200, c='red', zorder=5, edgecolors='white', linewidths=2)
-        ax1.set_xlabel('mAs', fontsize=11)
-        ax1.set_ylabel('SNR', fontsize=11)
-        ax1.set_title('SNR vs mAs (√mAs)', fontsize=12, fontweight='bold')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
+        with col_snr1:
+            # SNR vs mAs
+            fig_snr = go.Figure()
+            
+            fig_snr.add_trace(go.Scatter(
+                x=mas_range,
+                y=snr_range,
+                mode='lines',
+                name='SNR',
+                line=dict(color='#3498db', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(52, 152, 219, 0.2)'
+            ))
+            
+            fig_snr.add_hline(
+                y=30,
+                line_dash="dash",
+                line_color="green",
+                annotation_text="Objetivo (SNR=30)"
+            )
+            
+            fig_snr.add_vline(
+                x=mas_snr,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"Actual ({mas_snr} mAs)"
+            )
+            
+            fig_snr.add_scatter(
+                x=[mas_snr],
+                y=[snr],
+                mode='markers',
+                marker=dict(size=15, color='red', 
+                           line=dict(color='white', width=2)),
+                showlegend=False
+            )
+            
+            fig_snr.update_layout(
+                title='SNR vs mAs (√mAs)',
+                xaxis_title='mAs',
+                yaxis_title='SNR',
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_snr, use_container_width=True)
         
-        # Dose vs mAs (linear)
-        ax2.plot(mas_range, dose_range, 'r-', linewidth=2, label='Dosis')
-        ax2.axvline(mas_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({mas_snr} mAs)')
-        ax2.scatter([mas_snr], [dose_snr], s=200, c='red', zorder=5, edgecolors='white', linewidths=2)
-        ax2.set_xlabel('mAs', fontsize=11)
-        ax2.set_ylabel('Dosis (mGy)', fontsize=11)
-        ax2.set_title('Dosis vs mAs (Lineal)', fontsize=12, fontweight='bold')
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        with col_snr2:
+            # Dose vs mAs (linear)
+            fig_dose = go.Figure()
+            
+            fig_dose.add_trace(go.Scatter(
+                x=mas_range,
+                y=dose_range,
+                mode='lines',
+                name='Dosis',
+                line=dict(color='#e74c3c', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(231, 76, 60, 0.2)'
+            ))
+            
+            fig_dose.add_vline(
+                x=mas_snr,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"Actual ({mas_snr} mAs)"
+            )
+            
+            fig_dose.add_scatter(
+                x=[mas_snr],
+                y=[dose_snr],
+                mode='markers',
+                marker=dict(size=15, color='red', 
+                           line=dict(color='white', width=2)),
+                showlegend=False
+            )
+            
+            fig_dose.update_layout(
+                title='Dosis vs mAs (Lineal)',
+                xaxis_title='mAs',
+                yaxis_title='Dosis (mGy)',
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_dose, use_container_width=True)
         
         st.info("""
         💡 **Interpretación**:
@@ -9008,34 +9068,95 @@ with tabs[3]:
         cnr_range = [calculate_snr_cnr(k, mas_snr, thickness)[1] for k in kvp_range]
         contrast_range = [calculate_contrast_index(k) for k in kvp_range]
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        col_cnr1, col_cnr2 = st.columns(2)
         
-        # CNR vs kVp
-        ax1.plot(kvp_range, cnr_range, 'g-', linewidth=2, label='CNR')
-        ax1.axhline(8, color='green', linestyle='--', alpha=0.7, label='Objetivo (CNR=8)')
-        ax1.axvline(kvp_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({kvp_snr} kVp)')
-        ax1.scatter([kvp_snr], [cnr], s=200, c='red', zorder=5, edgecolors='white', linewidths=2)
-        ax1.set_xlabel('kVp', fontsize=11)
-        ax1.set_ylabel('CNR', fontsize=11)
-        ax1.set_title('CNR vs kVp', fontsize=12, fontweight='bold')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
+        with col_cnr1:
+            # CNR vs kVp
+            fig_cnr = go.Figure()
+            
+            fig_cnr.add_trace(go.Scatter(
+                x=kvp_range,
+                y=cnr_range,
+                mode='lines',
+                name='CNR',
+                line=dict(color='#2ecc71', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(46, 204, 113, 0.2)'
+            ))
+            
+            fig_cnr.add_hline(
+                y=8,
+                line_dash="dash",
+                line_color="green",
+                annotation_text="Objetivo (CNR=8)"
+            )
+            
+            fig_cnr.add_vline(
+                x=kvp_snr,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"Actual ({kvp_snr} kVp)"
+            )
+            
+            fig_cnr.add_scatter(
+                x=[kvp_snr],
+                y=[cnr],
+                mode='markers',
+                marker=dict(size=15, color='red', 
+                           line=dict(color='white', width=2)),
+                showlegend=False
+            )
+            
+            fig_cnr.update_layout(
+                title='CNR vs kVp',
+                xaxis_title='kVp',
+                yaxis_title='CNR',
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_cnr, use_container_width=True)
         
-        # Contrast Index vs kVp
-        ax2.plot(kvp_range, contrast_range, 'orange', linewidth=2, label='Índice de Contraste')
-        ax2.axvline(kvp_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({kvp_snr} kVp)')
-        current_contrast = calculate_contrast_index(kvp_snr)
-        ax2.scatter([kvp_snr], [current_contrast], s=200, c='red', zorder=5, 
-                   edgecolors='white', linewidths=2)
-        ax2.set_xlabel('kVp', fontsize=11)
-        ax2.set_ylabel('Índice de Contraste', fontsize=11)
-        ax2.set_title('Contraste vs kVp', fontsize=12, fontweight='bold')
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        with col_cnr2:
+            # Contrast Index vs kVp
+            fig_contrast_idx = go.Figure()
+            
+            fig_contrast_idx.add_trace(go.Scatter(
+                x=kvp_range,
+                y=contrast_range,
+                mode='lines',
+                name='Índice de Contraste',
+                line=dict(color='#f39c12', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(243, 156, 18, 0.2)'
+            ))
+            
+            fig_contrast_idx.add_vline(
+                x=kvp_snr,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"Actual ({kvp_snr} kVp)"
+            )
+            
+            current_contrast = calculate_contrast_index(kvp_snr)
+            fig_contrast_idx.add_scatter(
+                x=[kvp_snr],
+                y=[current_contrast],
+                mode='markers',
+                marker=dict(size=15, color='red', 
+                           line=dict(color='white', width=2)),
+                showlegend=False
+            )
+            
+            fig_contrast_idx.update_layout(
+                title='Contraste vs kVp',
+                xaxis_title='kVp',
+                yaxis_title='Índice de Contraste',
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_contrast_idx, use_container_width=True)
         
         st.warning("""
         ⚠️ **Interpretación**:
