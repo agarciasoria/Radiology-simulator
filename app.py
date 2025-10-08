@@ -607,7 +607,7 @@ with st.sidebar.expander("👤 Acerca de", expanded=True):
     - 👨‍⚕️ Experiencia profesional
     
     **Versión**: 1.0  
-    **Última actualización**: 2024
+    **Última actualización**: 2025
     """)
 
 # Quick tips
