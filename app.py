@@ -9962,9 +9962,6 @@ st.markdown("""
         y la normativa vigente. Los valores y cálculos son aproximaciones simplificadas 
         con fines didácticos.
     </p>
-    <p style='font-size: 0.8em; margin-top: 10px; color: #999;'>
-        Versión 1.0 | 2024 | Basado en normativa española y europea vigente
-    </p>
 </div>
 """, unsafe_allow_html=True)
 
