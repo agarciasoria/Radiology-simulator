@@ -8159,41 +8159,65 @@ with tabs[3]:
         # Visualization
         st.markdown("#### 📊 Comparación Visual")
         
-        fig = plt.figure(figsize=(12, 4))
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
-        
         # Bar chart comparison
         params = ['kVp', 'mAs', 'Dosis (mGy)']
         initial_values = [kvp_init, mas_init, dose_init]
         new_values = [kvp_new, mas_new, dose_new]
         
-        x = np.arange(len(params))
-        width = 0.35
+        fig_comparison = go.Figure()
         
-        ax1.bar(x - width/2, initial_values, width, label='Inicial', color='#3498db', alpha=0.8)
-        ax1.bar(x + width/2, new_values, width, label='Modificada', color='#e74c3c', alpha=0.8)
-        ax1.set_ylabel('Valor')
-        ax1.set_title('Comparación de Parámetros')
-        ax1.set_xticks(x)
-        ax1.set_xticklabels(params)
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
+        fig_comparison.add_trace(go.Bar(
+            x=params,
+            y=initial_values,
+            name='Inicial',
+            marker_color='#3498db',
+            opacity=0.8
+        ))
+        
+        fig_comparison.add_trace(go.Bar(
+            x=params,
+            y=new_values,
+            name='Modificada',
+            marker_color='#e74c3c',
+            opacity=0.8
+        ))
+        
+        fig_comparison.update_layout(
+            title='Comparación de Parámetros',
+            yaxis_title='Valor',
+            barmode='group',
+            height=400,
+            hovermode='x unified',
+            showlegend=True
+        )
+        
+        st.plotly_chart(fig_comparison, use_container_width=True)
         
         # Contrast comparison
         contrast_init = calculate_contrast_index(kvp_init)
         contrast_new = calculate_contrast_index(kvp_new)
         
-        ax2.barh(['Inicial', 'Modificada'], [contrast_init, contrast_new], 
-                color=['#3498db', '#e74c3c'], alpha=0.8)
-        ax2.set_xlabel('Índice de Contraste (unidades arbitrarias)')
-        ax2.set_title('Efecto en el Contraste')
-        ax2.set_xlim(0, 100)
-        ax2.grid(True, alpha=0.3)
+        fig_contrast = go.Figure()
         
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        fig_contrast.add_trace(go.Bar(
+            y=['Inicial', 'Modificada'],
+            x=[contrast_init, contrast_new],
+            orientation='h',
+            marker_color=['#3498db', '#e74c3c'],
+            opacity=0.8,
+            text=[f'{contrast_init:.1f}', f'{contrast_new:.1f}'],
+            textposition='auto'
+        ))
+        
+        fig_contrast.update_layout(
+            title='Efecto en el Contraste',
+            xaxis_title='Índice de Contraste (unidades arbitrarias)',
+            xaxis_range=[0, 100],
+            height=300,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig_contrast, use_container_width=True)
         
         st.info("""
         💡 **Interpretación**:
@@ -8257,37 +8281,99 @@ with tabs[3]:
         intensities = inverse_square_law(100, 100, distances)
         required_mas = mas_init_dfi * (distances / dfi_init) ** 2
         
-        fig = plt.figure(figsize=(12, 4))
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
+        # Create subplot with 2 columns
+        col_plot1, col_plot2 = st.columns(2)
         
-        # Intensity vs distance
-        ax1.plot(distances, intensities, 'b-', linewidth=2, label='Intensidad relativa')
-        ax1.axvline(dfi_init, color='green', linestyle='--', alpha=0.7, label=f'DFI inicial ({dfi_init} cm)')
-        ax1.axvline(dfi_new, color='red', linestyle='--', alpha=0.7, label=f'DFI nueva ({dfi_new} cm)')
-        ax1.axhline(100, color='gray', linestyle=':', alpha=0.5)
-        ax1.set_xlabel('Distancia (cm)')
-        ax1.set_ylabel('Intensidad Relativa (%)')
-        ax1.set_title('Intensidad vs Distancia (Ley del Cuadrado Inverso)')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-        ax1.set_ylim(0, 200)
+        with col_plot1:
+            # Intensity vs distance
+            fig_intensity = go.Figure()
+            
+            fig_intensity.add_trace(go.Scatter(
+                x=distances,
+                y=intensities,
+                mode='lines',
+                name='Intensidad relativa',
+                line=dict(color='#3498db', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(52, 152, 219, 0.2)'
+            ))
+            
+            fig_intensity.add_vline(
+                x=dfi_init,
+                line_dash="dash",
+                line_color="green",
+                annotation_text=f"DFI inicial ({dfi_init} cm)"
+            )
+            
+            fig_intensity.add_vline(
+                x=dfi_new,
+                line_dash="dash",
+                line_color="red",
+                annotation_text=f"DFI nueva ({dfi_new} cm)"
+            )
+            
+            fig_intensity.add_hline(
+                y=100,
+                line_dash="dot",
+                line_color="gray",
+                opacity=0.5
+            )
+            
+            fig_intensity.update_layout(
+                title='Intensidad vs Distancia',
+                xaxis_title='Distancia (cm)',
+                yaxis_title='Intensidad Relativa (%)',
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_intensity, use_container_width=True)
         
-        # Required mAs vs distance
-        ax2.plot(distances, required_mas, 'r-', linewidth=2, label='mAs requerido')
-        ax2.axvline(dfi_init, color='green', linestyle='--', alpha=0.7, label=f'DFI inicial')
-        ax2.axvline(dfi_new, color='red', linestyle='--', alpha=0.7, label=f'DFI nueva')
-        ax2.scatter([dfi_init, dfi_new], [mas_init_dfi, mas_new_dfi], 
-                   s=100, c=['green', 'red'], zorder=5, edgecolors='white', linewidths=2)
-        ax2.set_xlabel('Distancia (cm)')
-        ax2.set_ylabel('mAs necesario')
-        ax2.set_title('Compensación de mAs según Distancia')
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        with col_plot2:
+            # Required mAs vs distance
+            fig_mas = go.Figure()
+            
+            fig_mas.add_trace(go.Scatter(
+                x=distances,
+                y=required_mas,
+                mode='lines',
+                name='mAs requerido',
+                line=dict(color='#e74c3c', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(231, 76, 60, 0.2)'
+            ))
+            
+            fig_mas.add_vline(
+                x=dfi_init,
+                line_dash="dash",
+                line_color="green"
+            )
+            
+            fig_mas.add_vline(
+                x=dfi_new,
+                line_dash="dash",
+                line_color="red"
+            )
+            
+            fig_mas.add_scatter(
+                x=[dfi_init, dfi_new],
+                y=[mas_init_dfi, mas_new_dfi],
+                mode='markers',
+                marker=dict(size=12, color=['green', 'red'], 
+                           line=dict(color='white', width=2)),
+                name='Puntos actuales',
+                showlegend=False
+            )
+            
+            fig_mas.update_layout(
+                title='Compensación de mAs según Distancia',
+                xaxis_title='Distancia (cm)',
+                yaxis_title='mAs necesario',
+                height=400,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_mas, use_container_width=True)
         
         st.success("""
         🎯 **Ejemplo práctico**: 
@@ -8361,29 +8447,33 @@ with tabs[3]:
         st.dataframe(df_grid, use_container_width=True)
         
         # Visualization
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig_grid = go.Figure()
         
         ratios = ["Sin rejilla", "5:1", "6:1", "8:1", "10:1", "12:1", "16:1"]
         factors = [1, 2, 3, 4, 5, 5, 6]
-        colors = ['#2ecc71' if r == grid_ratio else '#3498db' for r in ratios]
+        colors_grid = ['#2ecc71' if r == grid_ratio else '#3498db' for r in ratios]
         
-        bars = ax.bar(ratios, factors, color=colors, alpha=0.8, edgecolor='white', linewidth=2)
+        fig_grid.add_trace(go.Bar(
+            x=ratios,
+            y=factors,
+            marker_color=colors_grid,
+            opacity=0.8,
+            text=factors,
+            texttemplate='× %{text}',
+            textposition='outside',
+            textfont=dict(size=14, color='white')
+        ))
         
-        # Highlight selected
-        for i, (ratio, factor) in enumerate(zip(ratios, factors)):
-            if ratio == grid_ratio:
-                ax.text(i, factor + 0.2, f'× {factor}', ha='center', fontsize=14, 
-                       fontweight='bold', color='#e74c3c')
+        fig_grid.update_layout(
+            title='Factores de Conversión por Tipo de Rejilla',
+            xaxis_title='Ratio de Rejilla',
+            yaxis_title='Factor de Conversión (mAs)',
+            yaxis_range=[0, 7],
+            height=400,
+            showlegend=False
+        )
         
-        ax.set_ylabel('Factor de Conversión (mAs)', fontsize=12)
-        ax.set_xlabel('Ratio de Rejilla', fontsize=12)
-        ax.set_title('Factores de Conversión por Tipo de Rejilla', fontsize=14, fontweight='bold')
-        ax.grid(True, alpha=0.3, axis='y')
-        ax.set_ylim(0, 7)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        st.plotly_chart(fig_grid, use_container_width=True)
         
         st.warning("""
         ⚠️ **Consideraciones clínicas**:
@@ -8454,11 +8544,6 @@ with tabs[3]:
         # Visualization
         st.markdown("#### 📊 Factores de Ajuste por Morfología")
         
-        fig = plt.figure(figsize=(12, 5))
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
-        
-        # Bar chart of all habitus factors
         habitus_types = ["Pediátrico\n(< 5 años)", "Niño\n(5-12 años)", "Adolescente",
                         "Asténico", "Hiposténico", "Esténico\n(normal)",
                         "Hiperesténico", "Obeso", "Obeso\nmórbido"]
@@ -8466,38 +8551,90 @@ with tabs[3]:
         colors_habitus = ['#3498db' if f <= 1 else '#e74c3c' for f in factors_all]
         
         # Highlight selected
-        if habitus in ["Pediátrico (< 5 años)", "Niño (5-12 años)", "Adolescente",
-                       "Adulto asténico (delgado)", "Adulto hiposténico", "Adulto esténico (normal)",
-                       "Adulto hiperesténico", "Adulto obeso", "Adulto obeso mórbido"]:
-            habitus_index = ["Pediátrico (< 5 años)", "Niño (5-12 años)", "Adolescente",
-                           "Adulto asténico (delgado)", "Adulto hiposténico", "Adulto esténico (normal)",
-                           "Adulto hiperesténico", "Adulto obeso", "Adulto obeso mórbido"].index(habitus)
-            colors_habitus[habitus_index] = '#2ecc71'
+        habitus_map = {
+            "Pediátrico (< 5 años)": 0, "Niño (5-12 años)": 1, "Adolescente": 2,
+            "Adulto asténico (delgado)": 3, "Adulto hiposténico": 4, "Adulto esténico (normal)": 5,
+            "Adulto hiperesténico": 6, "Adulto obeso": 7, "Adulto obeso mórbido": 8
+        }
         
-        bars = ax1.barh(habitus_types, factors_all, color=colors_habitus, alpha=0.8, edgecolor='white', linewidth=2)
-        ax1.axvline(1.0, color='gray', linestyle='--', linewidth=2, label='Estándar (1.0×)')
-        ax1.set_xlabel('Factor de Conversión', fontsize=11)
-        ax1.set_title('Factores de Ajuste por Tipo de Paciente', fontsize=12, fontweight='bold')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3, axis='x')
-        ax1.set_xlim(0, 2.2)
+        if habitus in habitus_map:
+            colors_habitus[habitus_map[habitus]] = '#2ecc71'
         
-        # mAs comparison
-        mas_values = [mas_base * f for f in [0.25, 0.5, 0.75, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0]]
+        col_plot1, col_plot2 = st.columns(2)
         
-        ax2.plot(factors_all, mas_values, 'o-', linewidth=2, markersize=8, color='#3498db', label='mAs requerido')
-        ax2.scatter([habitus_factor], [mas_adjusted], s=200, c='#e74c3c', 
-                   zorder=5, edgecolors='white', linewidths=3, label='Selección actual')
-        ax2.axhline(mas_base, color='gray', linestyle='--', alpha=0.7, label=f'Base ({mas_base} mAs)')
-        ax2.set_xlabel('Factor de Morfología', fontsize=11)
-        ax2.set_ylabel('mAs Requerido', fontsize=11)
-        ax2.set_title('Relación Factor-mAs', fontsize=12, fontweight='bold')
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
+        with col_plot1:
+            # Bar chart of all habitus factors
+            fig_habitus_bar = go.Figure()
+            
+            fig_habitus_bar.add_trace(go.Bar(
+                y=habitus_types,
+                x=factors_all,
+                orientation='h',
+                marker_color=colors_habitus,
+                opacity=0.8,
+                text=[f'{f}×' for f in factors_all],
+                textposition='auto'
+            ))
+            
+            fig_habitus_bar.add_vline(
+                x=1.0,
+                line_dash="dash",
+                line_color="gray",
+                line_width=2,
+                annotation_text="Estándar (1.0×)"
+            )
+            
+            fig_habitus_bar.update_layout(
+                title='Factores de Ajuste por Tipo de Paciente',
+                xaxis_title='Factor de Conversión',
+                xaxis_range=[0, 2.2],
+                height=450,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig_habitus_bar, use_container_width=True)
         
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        with col_plot2:
+            # mAs comparison
+            mas_values = [mas_base * f for f in factors_all]
+            
+            fig_mas_comp = go.Figure()
+            
+            fig_mas_comp.add_trace(go.Scatter(
+                x=factors_all,
+                y=mas_values,
+                mode='lines+markers',
+                name='mAs requerido',
+                line=dict(color='#3498db', width=3),
+                marker=dict(size=8)
+            ))
+            
+            fig_mas_comp.add_scatter(
+                x=[habitus_factor],
+                y=[mas_adjusted],
+                mode='markers',
+                marker=dict(size=15, color='#e74c3c', 
+                           line=dict(color='white', width=3)),
+                name='Selección actual',
+                showlegend=False
+            )
+            
+            fig_mas_comp.add_hline(
+                y=mas_base,
+                line_dash="dash",
+                line_color="gray",
+                annotation_text=f"Base ({mas_base} mAs)"
+            )
+            
+            fig_mas_comp.update_layout(
+                title='Relación Factor-mAs',
+                xaxis_title='Factor de Morfología',
+                yaxis_title='mAs Requerido',
+                height=450,
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_mas_comp, use_container_width=True)
         
         # Clinical recommendations
         st.markdown("#### 🏥 Recomendaciones Clínicas")
@@ -8624,56 +8761,36 @@ with tabs[3]:
         camera_right = st.checkbox("🟥 Cámara Derecha", value=True, key="cam_right")
     
     with col2:
-        # Create AEC chamber diagram
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.set_xlim(0, 10)
-        ax.set_ylim(0, 10)
-        ax.set_aspect('equal')
+        st.markdown("#### 🎯 Diagrama de Cámaras")
         
-        # Draw detector area
-        detector = plt.Rectangle((1, 2), 8, 6, linewidth=2, edgecolor='white', 
-                                facecolor='#2c3e50', alpha=0.3)
-        ax.add_patch(detector)
-        
-        # Draw chambers
-        chamber_positions = {
-            'left': (2.5, 5),
-            'center': (5, 5),
-            'right': (7.5, 5)
-        }
-        
-        chamber_colors = {
-            'left': '#3498db' if camera_left else '#95a5a6',
-            'center': '#f39c12' if camera_center else '#95a5a6',
-            'right': '#e74c3c' if camera_right else '#95a5a6'
-        }
-        
-        for pos, (x, y) in chamber_positions.items():
-            circle = plt.Circle((x, y), 0.8, color=chamber_colors[pos], alpha=0.8, 
-                              edgecolor='white', linewidth=2)
-            ax.add_patch(circle)
+        # Create simple representation
+        camera_status = []
+        if camera_left:
+            camera_status.append("🟦 Izquierda: ACTIVA")
+        else:
+            camera_status.append("⬜ Izquierda: Inactiva")
             
-            # Add label
-            label_text = pos[0].upper()
-            ax.text(x, y, label_text, ha='center', va='center', fontsize=16, 
-                   fontweight='bold', color='white')
+        if camera_center:
+            camera_status.append("🟨 Central: ACTIVA")
+        else:
+            camera_status.append("⬜ Central: Inactiva")
+            
+        if camera_right:
+            camera_status.append("🟥 Derecha: ACTIVA")
+        else:
+            camera_status.append("⬜ Derecha: Inactiva")
         
-        # Add anatomical overlay based on region
-        ax.text(5, 8.5, f"Región: {region_aec}", ha='center', fontsize=12, 
-               fontweight='bold', color='white')
+        st.info(f"**Región: {region_aec}**\n\n" + "\n\n".join(camera_status))
         
-        ax.text(5, 1, "Vista desde el tubo de RX", ha='center', fontsize=10, 
-               style='italic', color='#95a5a6')
-        
-        ax.axis('off')
-        ax.set_title('Configuración de Cámaras AEC', fontsize=14, fontweight='bold', 
-                    color='white', pad=20)
-        
-        fig.patch.set_facecolor('#0e1117')
-        ax.set_facecolor('#0e1117')
-        
-        st.pyplot(fig)
-        plt.close()
+        st.markdown("```")
+        st.markdown("     Vista desde el tubo de RX")
+        st.markdown("   ┌─────────────────────────┐")
+        st.markdown(f"   │  {'🟦' if camera_left else '⬜'}      {'🟨' if camera_center else '⬜'}      {'🟥' if camera_right else '⬜'}  │")
+        st.markdown("   │   (I)    (C)    (D)     │")
+        st.markdown("   │                         │")
+        st.markdown("   │      DETECTOR           │")
+        st.markdown("   └─────────────────────────┘")
+        st.markdown("```")
     
     # AEC Recommendations by region
     aec_recommendations = {
