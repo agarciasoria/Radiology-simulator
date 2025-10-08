@@ -381,6 +381,150 @@ ORGAN_DOSES = {
     "TC Cráneo": {"CTDI": 60.0, "efectiva": 2.0}
 }
 
+# ---------- Utilities for Technical Parameters ----------(tab 4)
+
+def calculate_15_percent_rule(kVp_initial, mAs_initial, direction="increase"):
+    """
+    Regla del 15%: Aumentar kVp en 15% duplica la exposición
+    Si aumentas kVp → reduces mAs a la mitad
+    Si reduces kVp → duplicas mAs
+    """
+    if direction == "increase":
+        kVp_new = kVp_initial * 1.15
+        mAs_new = mAs_initial / 2
+    else:
+        kVp_new = kVp_initial / 1.15
+        mAs_new = mAs_initial * 2
+    return kVp_new, mAs_new
+
+def inverse_square_law(intensity_initial, distance_initial, distance_new):
+    """
+    Ley del cuadrado inverso: I₁/I₂ = (d₂/d₁)²
+    """
+    intensity_new = intensity_initial * (distance_initial / distance_new) ** 2
+    return intensity_new
+
+def calculate_grid_conversion_factor(grid_ratio):
+    """
+    Factor de conversión de rejilla (Bucky factor)
+    """
+    grid_factors = {
+        "Sin rejilla": 1,
+        "5:1": 2,
+        "6:1": 3,
+        "8:1": 4,
+        "10:1": 5,
+        "12:1": 5,
+        "16:1": 6
+    }
+    return grid_factors.get(grid_ratio, 1)
+
+def body_habitus_factor(habitus):
+    """
+    Factores de corrección según morfología del paciente
+    """
+    factors = {
+        "Pediátrico (< 5 años)": 0.25,
+        "Niño (5-12 años)": 0.5,
+        "Adolescente": 0.75,
+        "Adulto asténico (delgado)": 0.8,
+        "Adulto hiposténico": 0.9,
+        "Adulto esténico (normal)": 1.0,
+        "Adulto hiperesténico": 1.2,
+        "Adulto obeso": 1.5,
+        "Adulto obeso mórbido": 2.0
+    }
+    return factors.get(habitus, 1.0)
+
+def calculate_snr_cnr(kVp, mAs, thickness_cm):
+    """
+    Estimar SNR (Signal-to-Noise Ratio) y CNR (Contrast-to-Noise Ratio)
+    """
+    # SNR aumenta con √(fotones) ∝ √(mAs)
+    snr = np.sqrt(mAs) * 10 * np.exp(-0.03 * thickness_cm)
+    
+    # CNR = Contraste × SNR (contraste disminuye con kVp)
+    contrast_factor = 100 / kVp
+    cnr = snr * contrast_factor
+    
+    return snr, cnr
+
+def get_technique_chart():
+    """
+    Tabla de técnicas radiográficas estándar
+    """
+    
+    data = {
+        "Región Anatómica": [
+            "Cráneo AP/PA", "Cráneo Lateral", "Senos paranasales",
+            "Columna cervical AP", "Columna cervical Lateral", 
+            "Columna torácica AP", "Columna torácica Lateral",
+            "Columna lumbar AP", "Columna lumbar Lateral",
+            "Tórax PA", "Tórax Lateral", "Parrilla costal",
+            "Abdomen AP", "Abdomen Lateral",
+            "Pelvis AP", "Cadera AP", "Fémur",
+            "Rodilla AP/Lateral", "Tibia-Peroné", "Tobillo", "Pie",
+            "Hombro AP", "Húmero", "Codo", "Antebrazo", "Muñeca", "Mano"
+        ],
+        "kVp": [
+            70, 70, 70,
+            75, 75,
+            75, 85,
+            80, 90,
+            120, 120, 70,
+            75, 85,
+            75, 75, 70,
+            65, 60, 60, 55,
+            70, 65, 60, 55, 55, 50
+        ],
+        "mAs": [
+            32, 20, 20,
+            15, 10,
+            25, 40,
+            40, 80,
+            3, 12, 10,
+            25, 50,
+            32, 32, 10,
+            8, 5, 4, 3,
+            12, 6, 5, 4, 3, 2.5
+        ],
+        "DFI (cm)": [
+            100, 100, 100,
+            180, 180,
+            100, 100,
+            100, 100,
+            180, 180, 100,
+            100, 100,
+            100, 100, 100,
+            100, 100, 100, 100,
+            100, 100, 100, 100, 100, 100
+        ],
+        "Rejilla": [
+            "8:1", "8:1", "No",
+            "No", "No",
+            "8:1", "8:1",
+            "10:1", "10:1",
+            "12:1", "12:1", "8:1",
+            "10:1", "10:1",
+            "10:1", "10:1", "8:1",
+            "No", "No", "No", "No",
+            "8:1", "No", "No", "No", "No", "No"
+        ],
+        "Grosor (cm)": [
+            15, 15, 20,
+            11, 11,
+            20, 25,
+            23, 28,
+            23, 30, 20,
+            22, 28,
+            20, 18, 12,
+            10, 8, 8, 6,
+            14, 9, 8, 6, 5, 4
+        ]
+    }
+    
+    return pd.DataFrame(data)
+
 # ---------- Page setup ----------
 st.set_page_config(
     page_title="Física de Imagen Radiológica", 
@@ -7851,23 +7995,1630 @@ por un experto cualificado en protección radiológica.
             
 
 # ============================================
-# TAB 4: PARÁMETROS TÉCNICOS (to be completed)
+# TAB 4: PARÁMETROS TÉCNICOS
 # ============================================
 with tabs[3]:
     st.header("🔧 Parámetros Técnicos y Optimización")
-    st.info("⚠️ Esta sección está en desarrollo. Será completada en la siguiente iteración.")
+    
     st.markdown("""
-    ### Próximamente en esta sección:
-    
-    - **Tabla de técnicas**: Por anatomía y proyección
-    - **Calculadora de conversión**: kVp-mAs, distancia, grid
-    - **Factor de exposición**: Ajustes por morfología
-    - **Rejillas anti-difusión**: Ratios, frecuencia, tipos
-    - **AEC (Control automático)**: Selección de cámaras
-    - **Calidad de imagen**: SNR, CNR, resolución espacial
-    
-    Continúa con las otras pestañas disponibles...
+    Los **parámetros técnicos** son las variables que el técnico en radiología ajusta para optimizar 
+    la calidad diagnóstica de la imagen mientras minimiza la dosis al paciente. Esta sección explora 
+    las principales reglas de conversión, factores de exposición y herramientas de cálculo.
     """)
+    
+    # ============================================
+    # SECTION 1: Factores Fundamentales
+    # ============================================
+    st.markdown("---")
+    st.subheader("📋 Factores Técnicos Fundamentales")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### ⚡ kVp (Kilovoltaje Pico)
+        **Controla la CALIDAD del haz**
+        
+        - **Penetración**: Mayor kVp → mayor penetración
+        - **Contraste**: Mayor kVp → menor contraste
+        - **Dosis**: Mayor kVp → menor dosis (más eficiente)
+        
+        **Rango típico**: 40-150 kVp
+        """)
+        
+    with col2:
+        st.markdown("""
+        ### 🔋 mAs (Miliamperios-segundo)
+        **Controla la CANTIDAD de RX**
+        
+        - **Densidad**: Mayor mAs → mayor densidad
+        - **Ruido**: Mayor mAs → menor ruido
+        - **Dosis**: Mayor mAs → mayor dosis (proporcional)
+        
+        **Cálculo**: mAs = mA × tiempo (s)
+        """)
+        
+    with col3:
+        st.markdown("""
+        ### 📏 DFI (Distancia Foco-Imagen)
+        **Distancia tubo-receptor**
+        
+        - **Magnificación**: Menor DFI → mayor magnificación
+        - **Definición**: Mayor DFI → mejor definición
+        - **Intensidad**: Ley del cuadrado inverso
+        
+        **Estándar**: 100 cm (general), 180 cm (tórax)
+        """)
+    
+    # ============================================
+    # SECTION 2: Tabla de Técnicas
+    # ============================================
+    st.markdown("---")
+    st.subheader("📊 Tabla de Técnicas Radiográficas")
+    
+    st.markdown("""
+    Esta tabla muestra los **parámetros técnicos recomendados** para las proyecciones más comunes. 
+    Son valores de referencia que deben ajustarse según el equipo, el paciente y el protocolo del centro.
+    """)
+    
+    # Get technique chart
+    df_techniques = get_technique_chart()
+    
+    # Add filter by body region
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        region_filter = st.selectbox(
+            "Filtrar por región:",
+            ["Todas", "Cráneo/Columna", "Tórax/Abdomen", "Extremidades Superiores", "Extremidades Inferiores"]
+        )
+    
+    # Filter dataframe
+    if region_filter == "Cráneo/Columna":
+        df_filtered = df_techniques[df_techniques["Región Anatómica"].str.contains("Cráneo|Columna|Senos")]
+    elif region_filter == "Tórax/Abdomen":
+        df_filtered = df_techniques[df_techniques["Región Anatómica"].str.contains("Tórax|Abdomen|Pelvis|Parrilla")]
+    elif region_filter == "Extremidades Superiores":
+        df_filtered = df_techniques[df_techniques["Región Anatómica"].str.contains("Hombro|Húmero|Codo|Antebrazo|Muñeca|Mano")]
+    elif region_filter == "Extremidades Inferiores":
+        df_filtered = df_techniques[df_techniques["Región Anatómica"].str.contains("Cadera|Fémur|Rodilla|Tibia|Tobillo|Pie")]
+    else:
+        df_filtered = df_techniques
+    
+    # Display table
+    st.dataframe(df_filtered, use_container_width=True, height=400)
+    
+    st.info("""
+    💡 **Nota importante**: Estos valores son orientativos. Siempre consulta el protocolo específico 
+    de tu centro y ajusta según:
+    - Morfología del paciente (delgado, obeso, pediátrico)
+    - Tipo de receptor (CR, DR, sensibilidad)
+    - Estado del equipo (antigüedad, calibración)
+    - Patología sospechada (puede requerir técnica especial)
+    """)
+    
+    # ============================================
+    # SECTION 3: Calculadoras de Conversión
+    # ============================================
+    st.markdown("---")
+    st.subheader("🧮 Calculadoras de Conversión")
+    
+    calc_tabs = st.tabs([
+        "📐 Regla del 15%", 
+        "📏 Ley del Cuadrado Inverso", 
+        "🔲 Factor de Rejilla",
+        "👤 Morfología del Paciente"
+    ])
+    
+    # --- Calculator 1: 15% Rule ---
+    with calc_tabs[0]:
+        st.markdown("""
+        ### 📐 Regla del 15% (kVp ↔ mAs)
+        
+        **Principio físico**: Aumentar el kVp en un **15%** duplica la exposición del receptor de imagen, 
+        lo que permite reducir el mAs **a la mitad** manteniendo la densidad óptica constante.
+        
+        **¿Cuándo usarla?**
+        - ✅ Reducir dosis al paciente
+        - ✅ Reducir tiempo de exposición (pacientes con movimiento)
+        - ✅ Mejorar penetración en pacientes obesos
+        - ⚠️ Cuidado: reduce el contraste de la imagen
+        """)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📥 Técnica Inicial")
+            kvp_init = st.number_input("kVp inicial", 40, 150, 70, 5, key="kvp_15_init")
+            mas_init = st.number_input("mAs inicial", 0.5, 500.0, 20.0, 0.5, key="mas_15_init")
+            
+            direction = st.radio(
+                "Modificación:",
+                ["Aumentar kVp (+15%)", "Disminuir kVp (-15%)"],
+                key="direction_15"
+            )
+        
+        with col2:
+            st.markdown("#### 📤 Técnica Modificada")
+            
+            if "Aumentar" in direction:
+                kvp_new, mas_new = calculate_15_percent_rule(kvp_init, mas_init, "increase")
+                st.success(f"**kVp nuevo**: {kvp_new:.1f} kVp (+15%)")
+                st.success(f"**mAs nuevo**: {mas_new:.1f} mAs (-50%)")
+            else:
+                kvp_new, mas_new = calculate_15_percent_rule(kvp_init, mas_init, "decrease")
+                st.warning(f"**kVp nuevo**: {kvp_new:.1f} kVp (-15%)")
+                st.warning(f"**mAs nuevo**: {mas_new:.1f} mAs (+100%)")
+            
+            # Calculate dose comparison
+            dose_init = calculate_entrance_dose(kvp_init, mas_init)
+            dose_new = calculate_entrance_dose(kvp_new, mas_new)
+            
+            st.metric("Dosis aproximada", f"{dose_new:.2f} mGy", 
+                     delta=f"{((dose_new/dose_init - 1)*100):.1f}%")
+        
+        # Visualization
+        st.markdown("#### 📊 Comparación Visual")
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        
+        # Bar chart comparison
+        params = ['kVp', 'mAs', 'Dosis (mGy)']
+        initial_values = [kvp_init, mas_init, dose_init]
+        new_values = [kvp_new, mas_new, dose_new]
+        
+        x = np.arange(len(params))
+        width = 0.35
+        
+        ax1.bar(x - width/2, initial_values, width, label='Inicial', color='#3498db', alpha=0.8)
+        ax1.bar(x + width/2, new_values, width, label='Modificada', color='#e74c3c', alpha=0.8)
+        ax1.set_ylabel('Valor')
+        ax1.set_title('Comparación de Parámetros')
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(params)
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        # Contrast comparison
+        contrast_init = calculate_contrast_index(kvp_init)
+        contrast_new = calculate_contrast_index(kvp_new)
+        
+        ax2.barh(['Inicial', 'Modificada'], [contrast_init, contrast_new], 
+                color=['#3498db', '#e74c3c'], alpha=0.8)
+        ax2.set_xlabel('Índice de Contraste (unidades arbitrarias)')
+        ax2.set_title('Efecto en el Contraste')
+        ax2.set_xlim(0, 100)
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+        
+        st.info("""
+        💡 **Interpretación**:
+        - Si aumentas kVp: ✅ Menos dosis, ✅ Menos mAs, ⚠️ Menos contraste
+        - Si disminuyes kVp: ✅ Más contraste, ⚠️ Más dosis, ⚠️ Más mAs
+        """)
+    
+    # --- Calculator 2: Inverse Square Law ---
+    with calc_tabs[1]:
+        st.markdown("""
+        ### 📏 Ley del Cuadrado Inverso
+        
+        **Principio físico**: La intensidad de la radiación es **inversamente proporcional al cuadrado de la distancia**.
+        
+        $$I_1 / I_2 = (d_2 / d_1)^2$$
+        
+        **Aplicación práctica**: Si cambias la distancia foco-imagen (DFI), debes ajustar el mAs 
+        para mantener la misma densidad en la imagen.
+        
+        **Fórmula de compensación**:
+        $$mAs_2 = mAs_1 \\times (d_2 / d_1)^2$$
+        """)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📥 Condiciones Iniciales")
+            dfi_init = st.number_input("DFI inicial (cm)", 50, 250, 100, 10, key="dfi_init")
+            mas_init_dfi = st.number_input("mAs inicial", 0.5, 500.0, 20.0, 0.5, key="mas_dfi_init")
+            
+            st.markdown("#### 🎯 Nueva Distancia")
+            dfi_new = st.number_input("DFI nueva (cm)", 50, 250, 180, 10, key="dfi_new")
+        
+        with col2:
+            st.markdown("#### 📤 mAs Compensado")
+            
+            # Calculate new mAs
+            mas_new_dfi = mas_init_dfi * (dfi_new / dfi_init) ** 2
+            
+            ratio = (dfi_new / dfi_init) ** 2
+            
+            if dfi_new > dfi_init:
+                st.success(f"**mAs nuevo**: {mas_new_dfi:.1f} mAs")
+                st.info(f"Aumenta mAs ×{ratio:.2f} (distancia mayor → menos intensidad)")
+            elif dfi_new < dfi_init:
+                st.warning(f"**mAs nuevo**: {mas_new_dfi:.1f} mAs")
+                st.info(f"Reduce mAs ×{ratio:.2f} (distancia menor → más intensidad)")
+            else:
+                st.info("**Sin cambios** (misma distancia)")
+            
+            # Calculate relative intensity
+            st.markdown("#### 💡 Intensidad Relativa")
+            intensity_rel = inverse_square_law(100, dfi_init, dfi_new)
+            st.metric("Intensidad", f"{intensity_rel:.1f}%", 
+                     delta=f"{(intensity_rel - 100):.1f}%")
+        
+        # Visualization: Inverse square law curve
+        st.markdown("#### 📊 Visualización de la Ley del Cuadrado Inverso")
+        
+        distances = np.linspace(50, 250, 100)
+        intensities = inverse_square_law(100, 100, distances)
+        required_mas = mas_init_dfi * (distances / dfi_init) ** 2
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        
+        # Intensity vs distance
+        ax1.plot(distances, intensities, 'b-', linewidth=2, label='Intensidad relativa')
+        ax1.axvline(dfi_init, color='green', linestyle='--', alpha=0.7, label=f'DFI inicial ({dfi_init} cm)')
+        ax1.axvline(dfi_new, color='red', linestyle='--', alpha=0.7, label=f'DFI nueva ({dfi_new} cm)')
+        ax1.axhline(100, color='gray', linestyle=':', alpha=0.5)
+        ax1.set_xlabel('Distancia (cm)')
+        ax1.set_ylabel('Intensidad Relativa (%)')
+        ax1.set_title('Intensidad vs Distancia (Ley del Cuadrado Inverso)')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim(0, 200)
+        
+        # Required mAs vs distance
+        ax2.plot(distances, required_mas, 'r-', linewidth=2, label='mAs requerido')
+        ax2.axvline(dfi_init, color='green', linestyle='--', alpha=0.7, label=f'DFI inicial')
+        ax2.axvline(dfi_new, color='red', linestyle='--', alpha=0.7, label=f'DFI nueva')
+        ax2.scatter([dfi_init, dfi_new], [mas_init_dfi, mas_new_dfi], 
+                   s=100, c=['green', 'red'], zorder=5, edgecolors='white', linewidths=2)
+        ax2.set_xlabel('Distancia (cm)')
+        ax2.set_ylabel('mAs necesario')
+        ax2.set_title('Compensación de mAs según Distancia')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+        
+        st.success("""
+        🎯 **Ejemplo práctico**: 
+        - Radiografía de tórax PA: DFI = 180 cm (reduce magnificación cardiaca)
+        - Radiografía general: DFI = 100 cm (estándar)
+        - Si cambias de 100→180 cm: mAs debe multiplicarse por (180/100)² = **3.24 veces**
+        """)
+    
+    # --- Calculator 3: Grid Factor ---
+    with calc_tabs[2]:
+        st.markdown("""
+        ### 🔲 Factor de Conversión de Rejilla
+        
+        Las **rejillas antidifusión** eliminan radiación dispersa mejorando el contraste, 
+        pero absorben también radiación primaria, requiriendo **aumentar el mAs**.
+        
+        **Ratio de rejilla**: Relación altura/separación de las láminas (ej: 10:1, 12:1)
+        - Mayor ratio → elimina más dispersión → mejor contraste → requiere más mAs
+        
+        **Factor Bucky**: Factor multiplicador del mAs al usar rejilla
+        """)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📥 Técnica Sin Rejilla")
+            mas_no_grid = st.number_input("mAs sin rejilla", 0.5, 200.0, 10.0, 0.5, key="mas_no_grid")
+            
+            st.markdown("#### 🔲 Seleccionar Rejilla")
+            grid_ratio = st.selectbox(
+                "Ratio de rejilla:",
+                ["Sin rejilla", "5:1", "6:1", "8:1", "10:1", "12:1", "16:1"],
+                index=4,
+                key="grid_ratio"
+            )
+        
+        with col2:
+            st.markdown("#### 📤 mAs Con Rejilla")
+            
+            grid_factor = calculate_grid_conversion_factor(grid_ratio)
+            mas_with_grid = mas_no_grid * grid_factor
+            
+            if grid_ratio != "Sin rejilla":
+                st.success(f"**Factor de conversión**: {grid_factor}×")
+                st.success(f"**mAs con rejilla**: {mas_with_grid:.1f} mAs")
+                st.info(f"Debes aumentar el mAs ×{grid_factor} al usar rejilla {grid_ratio}")
+            else:
+                st.info("Sin rejilla seleccionada")
+            
+            # Dose comparison
+            st.markdown("#### ⚠️ Impacto en Dosis")
+            dose_no_grid = mas_no_grid * 0.1  # Arbitrary units
+            dose_with_grid = mas_with_grid * 0.1
+            
+            st.metric("Dosis al paciente", f"{dose_with_grid:.1f} u.a.", 
+                     delta=f"+{((grid_factor - 1) * 100):.0f}%")
+        
+        # Grid comparison table
+        st.markdown("#### 📊 Tabla de Factores de Rejilla")
+        
+        grid_data = {
+            "Ratio Rejilla": ["Sin rejilla", "5:1", "6:1", "8:1", "10:1", "12:1", "16:1"],
+            "Factor Bucky": [1, 2, 3, 4, 5, 5, 6],
+            "Frecuencia típica": ["-", "25-40 líneas/cm", "40 líneas/cm", "40 líneas/cm", 
+                                 "40-60 líneas/cm", "60-70 líneas/cm", "70-80 líneas/cm"],
+            "Aplicación": ["Extremidades", "Portátiles", "General", "General/Mesa", 
+                          "General/Bucky", "Bucky/Alta calidad", "Alta energía"]
+        }
+        
+        df_grid = pd.DataFrame(grid_data)
+        st.dataframe(df_grid, use_container_width=True)
+        
+        # Visualization
+        fig, ax = plt.subplots(figsize=(10, 5))
+        
+        ratios = ["Sin rejilla", "5:1", "6:1", "8:1", "10:1", "12:1", "16:1"]
+        factors = [1, 2, 3, 4, 5, 5, 6]
+        colors = ['#2ecc71' if r == grid_ratio else '#3498db' for r in ratios]
+        
+        bars = ax.bar(ratios, factors, color=colors, alpha=0.8, edgecolor='white', linewidth=2)
+        
+        # Highlight selected
+        for i, (ratio, factor) in enumerate(zip(ratios, factors)):
+            if ratio == grid_ratio:
+                ax.text(i, factor + 0.2, f'× {factor}', ha='center', fontsize=14, 
+                       fontweight='bold', color='#e74c3c')
+        
+        ax.set_ylabel('Factor de Conversión (mAs)', fontsize=12)
+        ax.set_xlabel('Ratio de Rejilla', fontsize=12)
+        ax.set_title('Factores de Conversión por Tipo de Rejilla', fontsize=14, fontweight='bold')
+        ax.grid(True, alpha=0.3, axis='y')
+        ax.set_ylim(0, 7)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+        
+        st.warning("""
+        ⚠️ **Consideraciones clínicas**:
+        - **Sin rejilla**: Solo para extremidades finas (< 10 cm grosor)
+        - **8:1 a 10:1**: Estándar para radiografía general
+        - **12:1 a 16:1**: Alta energía (> 100 kVp), cuerpo grueso
+        - **Móviles**: Rejillas de bajo ratio (5:1, 6:1) o sin rejilla
+        """)
+    
+    # --- Calculator 4: Body Habitus ---
+    with calc_tabs[3]:
+        st.markdown("""
+        ### 👤 Ajuste por Morfología del Paciente
+        
+        La **morfología del paciente** (habitus corporal) afecta significativamente la atenuación 
+        del haz de rayos X. Es necesario ajustar los parámetros técnicos según el grosor y 
+        composición corporal.
+        
+        **Factores a considerar**:
+        - **Grosor del paciente**: A mayor grosor → más atenuación → más mAs
+        - **Composición**: Músculo atenúa más que grasa
+        - **Edad**: Pediátricos requieren técnicas significativamente menores
+        """)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📥 Técnica Base (Adulto Normal)")
+            kvp_base = st.number_input("kVp base", 40, 150, 75, 5, key="kvp_habitus")
+            mas_base = st.number_input("mAs base", 0.5, 200.0, 25.0, 0.5, key="mas_habitus")
+            
+            st.markdown("#### 👤 Morfología del Paciente")
+            habitus = st.selectbox(
+                "Seleccionar tipo:",
+                ["Pediátrico (< 5 años)", "Niño (5-12 años)", "Adolescente",
+                 "Adulto asténico (delgado)", "Adulto hiposténico", "Adulto esténico (normal)",
+                 "Adulto hiperesténico", "Adulto obeso", "Adulto obeso mórbido"],
+                index=5,
+                key="habitus_type"
+            )
+        
+        with col2:
+            st.markdown("#### 📤 Técnica Ajustada")
+            
+            habitus_factor = body_habitus_factor(habitus)
+            mas_adjusted = mas_base * habitus_factor
+            
+            # Show adjustment
+            if habitus_factor < 1:
+                st.success(f"**Factor de ajuste**: {habitus_factor}× (reducir)")
+                st.success(f"**kVp**: {kvp_base} kVp (sin cambio)")
+                st.success(f"**mAs ajustado**: {mas_adjusted:.1f} mAs")
+            elif habitus_factor > 1:
+                st.warning(f"**Factor de ajuste**: {habitus_factor}× (aumentar)")
+                st.warning(f"**kVp**: {kvp_base} kVp (considerar +10-15%)")
+                st.warning(f"**mAs ajustado**: {mas_adjusted:.1f} mAs")
+            else:
+                st.info("**Sin ajuste** (técnica estándar)")
+            
+            # Calculate dose
+            st.markdown("#### 💊 Dosis Estimada")
+            dose_base = calculate_entrance_dose(kvp_base, mas_base)
+            dose_adjusted = calculate_entrance_dose(kvp_base, mas_adjusted)
+            
+            st.metric("Dosis de entrada", f"{dose_adjusted:.2f} mGy",
+                     delta=f"{((habitus_factor - 1) * 100):.0f}%")
+        
+        # Visualization
+        st.markdown("#### 📊 Factores de Ajuste por Morfología")
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        
+        # Bar chart of all habitus factors
+        habitus_types = ["Pediátrico\n(< 5 años)", "Niño\n(5-12 años)", "Adolescente",
+                        "Asténico", "Hiposténico", "Esténico\n(normal)",
+                        "Hiperesténico", "Obeso", "Obeso\nmórbido"]
+        factors_all = [0.25, 0.5, 0.75, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0]
+        colors_habitus = ['#3498db' if f <= 1 else '#e74c3c' for f in factors_all]
+        
+        # Highlight selected
+        if habitus in ["Pediátrico (< 5 años)", "Niño (5-12 años)", "Adolescente",
+                       "Adulto asténico (delgado)", "Adulto hiposténico", "Adulto esténico (normal)",
+                       "Adulto hiperesténico", "Adulto obeso", "Adulto obeso mórbido"]:
+            habitus_index = ["Pediátrico (< 5 años)", "Niño (5-12 años)", "Adolescente",
+                           "Adulto asténico (delgado)", "Adulto hiposténico", "Adulto esténico (normal)",
+                           "Adulto hiperesténico", "Adulto obeso", "Adulto obeso mórbido"].index(habitus)
+            colors_habitus[habitus_index] = '#2ecc71'
+        
+        bars = ax1.barh(habitus_types, factors_all, color=colors_habitus, alpha=0.8, edgecolor='white', linewidth=2)
+        ax1.axvline(1.0, color='gray', linestyle='--', linewidth=2, label='Estándar (1.0×)')
+        ax1.set_xlabel('Factor de Conversión', fontsize=11)
+        ax1.set_title('Factores de Ajuste por Tipo de Paciente', fontsize=12, fontweight='bold')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3, axis='x')
+        ax1.set_xlim(0, 2.2)
+        
+        # mAs comparison
+        mas_values = [mas_base * f for f in [0.25, 0.5, 0.75, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0]]
+        
+        ax2.plot(factors_all, mas_values, 'o-', linewidth=2, markersize=8, color='#3498db', label='mAs requerido')
+        ax2.scatter([habitus_factor], [mas_adjusted], s=200, c='#e74c3c', 
+                   zorder=5, edgecolors='white', linewidths=3, label='Selección actual')
+        ax2.axhline(mas_base, color='gray', linestyle='--', alpha=0.7, label=f'Base ({mas_base} mAs)')
+        ax2.set_xlabel('Factor de Morfología', fontsize=11)
+        ax2.set_ylabel('mAs Requerido', fontsize=11)
+        ax2.set_title('Relación Factor-mAs', fontsize=12, fontweight='bold')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+        
+        # Clinical recommendations
+        st.markdown("#### 🏥 Recomendaciones Clínicas")
+        
+        recommendations = {
+            "Pediátrico (< 5 años)": {
+                "icon": "👶",
+                "advice": "Técnica muy baja. Priorizar velocidad (movimiento). Considerar inmovilización.",
+                "kvp": "Reducir 10-15 kVp respecto adulto",
+                "safety": "⚠️ Extremar ALARA - tejidos en desarrollo"
+            },
+            "Niño (5-12 años)": {
+                "icon": "🧒",
+                "advice": "Técnica reducida. Explicar procedimiento para colaboración.",
+                "kvp": "Reducir 5-10 kVp respecto adulto",
+                "safety": "⚠️ Alta radiosensibilidad"
+            },
+            "Adolescente": {
+                "icon": "👦",
+                "advice": "Técnica ligeramente reducida. Similar a adulto delgado.",
+                "kvp": "Similar a adulto",
+                "safety": "⚠️ Proteger gónadas si aplica"
+            },
+            "Adulto asténico (delgado)": {
+                "icon": "🧍",
+                "advice": "Reducir técnica. Buen contraste natural por poco tejido blando.",
+                "kvp": "Estándar o -5 kVp",
+                "safety": "✅ Menor dosis necesaria"
+            },
+            "Adulto hiposténico": {
+                "icon": "🧍",
+                "advice": "Técnica estándar con ligera reducción.",
+                "kvp": "Estándar",
+                "safety": "✅ Técnica habitual"
+            },
+            "Adulto esténico (normal)": {
+                "icon": "🧍‍♂️",
+                "advice": "Técnica estándar de referencia.",
+                "kvp": "Estándar según tabla",
+                "safety": "✅ Protocolo estándar"
+            },
+            "Adulto hiperesténico": {
+                "icon": "🧍‍♂️",
+                "advice": "Aumentar técnica. Considerar aumento de kVp además de mAs.",
+                "kvp": "+5 a +10 kVp",
+                "safety": "⚠️ Optimizar kVp para reducir dosis"
+            },
+            "Adulto obeso": {
+                "icon": "🧍‍♂️",
+                "advice": "Aumentar significativamente. Preferir aumento de kVp (15%) antes que mAs.",
+                "kvp": "+15 a +20 kVp",
+                "safety": "⚠️ Alto riesgo de dosis elevada"
+            },
+            "Adulto obeso mórbido": {
+                "icon": "🧍‍♂️",
+                "advice": "Técnica muy alta. Considerar técnicas alternativas (TC si disponible).",
+                "kvp": "+20 a +30 kVp",
+                "safety": "⚠️⚠️ Riesgo muy alto - Evaluar beneficio/riesgo"
+            }
+        }
+        
+        if habitus in recommendations:
+            rec = recommendations[habitus]
+            
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                st.markdown(f"### {rec['icon']}")
+            with col2:
+                st.info(f"**{habitus}**\n\n{rec['advice']}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**Ajuste de kVp**: {rec['kvp']}")
+            with col2:
+                st.markdown(f"**Consideración de seguridad**: {rec['safety']}")
+    
+    # ============================================
+    # SECTION 4: Control Automático de Exposición (AEC)
+    # ============================================
+    st.markdown("---")
+    st.subheader("🤖 Control Automático de Exposición (AEC/Phototimer)")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        El **AEC (Automatic Exposure Control)** o **Phototimer** es un sistema que mide automáticamente 
+        la cantidad de radiación que atraviesa el paciente y **detiene la exposición** cuando se alcanza 
+        la densidad óptima.
+        
+        **Ventajas**:
+        - ✅ Densidad consistente independiente de la morfología del paciente
+        - ✅ Reduce errores del operador
+        - ✅ Optimiza la dosis (no sobreexpone)
+        - ✅ Mejora el flujo de trabajo (menos repeticiones)
+        
+        **Componentes**:
+        - **Cámaras de ionización**: Detectores bajo la mesa (generalmente 3)
+        - **Circuito de control**: Analiza la señal y corta el disparo
+        - **Selector de cámaras**: Permite elegir qué cámaras usar
+        """)
+    
+    with col2:
+        st.image("https://via.placeholder.com/300x300.png?text=AEC+Chambers", 
+                caption="Disposición típica de cámaras AEC", use_container_width=True)
+        # En tu implementación real, reemplaza con una imagen real de las cámaras AEC
+    
+    # AEC Chamber Selection Simulator
+    st.markdown("#### 🎯 Simulador de Selección de Cámaras")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        region_aec = st.selectbox(
+            "Región a radiografiar:",
+            ["Tórax PA", "Tórax Lateral", "Columna Lumbar AP", "Columna Lumbar Lateral",
+             "Abdomen AP", "Pelvis AP"],
+            key="region_aec"
+        )
+        
+        st.markdown("**Selecciona cámaras activas:**")
+        camera_left = st.checkbox("🟦 Cámara Izquierda", value=True, key="cam_left")
+        camera_center = st.checkbox("🟨 Cámara Central", value=True, key="cam_center")
+        camera_right = st.checkbox("🟥 Cámara Derecha", value=True, key="cam_right")
+    
+    with col2:
+        # Create AEC chamber diagram
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 10)
+        ax.set_aspect('equal')
+        
+        # Draw detector area
+        detector = plt.Rectangle((1, 2), 8, 6, linewidth=2, edgecolor='white', 
+                                facecolor='#2c3e50', alpha=0.3)
+        ax.add_patch(detector)
+        
+        # Draw chambers
+        chamber_positions = {
+            'left': (2.5, 5),
+            'center': (5, 5),
+            'right': (7.5, 5)
+        }
+        
+        chamber_colors = {
+            'left': '#3498db' if camera_left else '#95a5a6',
+            'center': '#f39c12' if camera_center else '#95a5a6',
+            'right': '#e74c3c' if camera_right else '#95a5a6'
+        }
+        
+        for pos, (x, y) in chamber_positions.items():
+            circle = plt.Circle((x, y), 0.8, color=chamber_colors[pos], alpha=0.8, 
+                              edgecolor='white', linewidth=2)
+            ax.add_patch(circle)
+            
+            # Add label
+            label_text = pos[0].upper()
+            ax.text(x, y, label_text, ha='center', va='center', fontsize=16, 
+                   fontweight='bold', color='white')
+        
+        # Add anatomical overlay based on region
+        ax.text(5, 8.5, f"Región: {region_aec}", ha='center', fontsize=12, 
+               fontweight='bold', color='white')
+        
+        ax.text(5, 1, "Vista desde el tubo de RX", ha='center', fontsize=10, 
+               style='italic', color='#95a5a6')
+        
+        ax.axis('off')
+        ax.set_title('Configuración de Cámaras AEC', fontsize=14, fontweight='bold', 
+                    color='white', pad=20)
+        
+        fig.patch.set_facecolor('#0e1117')
+        ax.set_facecolor('#0e1117')
+        
+        st.pyplot(fig)
+        plt.close()
+    
+    # AEC Recommendations by region
+    aec_recommendations = {
+        "Tórax PA": {
+            "cameras": "Izquierda + Derecha (ambos pulmones)",
+            "avoid": "⚠️ NO usar cámara central (mediastino muy denso)",
+            "kvp": "120-125 kVp",
+            "tips": "Asegurar simetría del paciente. Centrar el tórax."
+        },
+        "Tórax Lateral": {
+            "cameras": "Central (o combinación según equipo)",
+            "avoid": "✅ Verificar que brazos estén elevados",
+            "kvp": "120-125 kVp",
+            "tips": "Mayor mAs necesario que PA. Verificar campo."
+        },
+        "Columna Lumbar AP": {
+            "cameras": "Las 3 cámaras",
+            "avoid": "⚠️ Verificar centrado (no debe salirse del campo)",
+            "kvp": "75-85 kVp",
+            "tips": "Considerar morfología. Obesos pueden requerir +15 kVp."
+        },
+        "Columna Lumbar Lateral": {
+            "cameras": "Central",
+            "avoid": "⚠️ Difícil con AEC - considerar técnica manual en obesos",
+            "kvp": "85-95 kVp",
+            "tips": "Flexionar rodillas. Zona muy densa."
+        },
+        "Abdomen AP": {
+            "cameras": "Las 3 cámaras",
+            "avoid": "✅ Verificar que vejiga esté vacía si es posible",
+            "kvp": "75-80 kVp",
+            "tips": "Exposición al final de espiración."
+        },
+        "Pelvis AP": {
+            "cameras": "Las 3 cámaras",
+            "avoid": "✅ Rotación interna de pies",
+            "kvp": "75-80 kVp",
+            "tips": "Densidad homogénea - funciona bien con AEC."
+        }
+    }
+    
+    if region_aec in aec_recommendations:
+        rec_aec = aec_recommendations[region_aec]
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success(f"**Cámaras recomendadas**: {rec_aec['cameras']}")
+            st.info(f"**kVp sugerido**: {rec_aec['kvp']}")
+        with col2:
+            st.warning(rec_aec['avoid'])
+            st.markdown(f"💡 **Consejo**: {rec_aec['tips']}")
+    
+    # AEC Common Errors
+    with st.expander("⚠️ Errores Comunes con AEC y Cómo Evitarlos"):
+        st.markdown("""
+        ### Problemas Frecuentes:
+        
+        #### 1. **Imagen Sobreexpuesta (muy oscura en film)**
+        **Causas**:
+        - Cámaras mal seleccionadas (detectan zona muy radiolúcida)
+        - Colimación excesiva (cámaras parcialmente fuera del campo)
+        - Paciente no centrado correctamente
+        
+        **Solución**: Verificar cámaras activas, centrado y colimación.
+        
+        ---
+        
+        #### 2. **Imagen Subexpuesta (muy clara)**
+        **Causas**:
+        - Cámaras detectan zona muy densa (ej: prótesis metálica)
+        - Material radiopaco sobre las cámaras
+        - kVp insuficiente (AEC llega a tiempo máximo sin densidad adecuada)
+        
+        **Solución**: Desactivar cámara sobre prótesis, aumentar kVp, verificar que no hay objetos sobre el detector.
+        
+        ---
+        
+        #### 3. **Disparo Mínimo (imagen inmediata)**
+        **Causas**:
+        - No hay paciente en la mesa
+        - Chasis/detector no insertado correctamente
+        - Cámaras fuera del campo de colimación
+        
+        **Solución**: Verificar presencia del paciente, correcta inserción del receptor, colimación adecuada.
+        
+        ---
+        
+        #### 4. **Tiempo Máximo Alcanzado**
+        **Causas**:
+        - kVp demasiado bajo para el grosor del paciente
+        - mA muy bajo
+        - Paciente muy obeso sin ajuste de técnica
+        
+        **Solución**: Aumentar kVp (+15%), verificar mA, considerar técnica manual en casos extremos.
+        
+        ---
+        
+        ### ✅ Reglas de Oro del AEC:
+        
+        1. **Selección de cámaras**: Deben estar bajo la anatomía de interés
+        2. **Centrado**: El paciente debe estar perfectamente centrado
+        3. **Colimación**: Las cámaras activas deben estar dentro del campo
+        4. **kVp adecuado**: Debe ser suficiente para penetrar al paciente
+        5. **Densidad/Backup time**: Configurar tiempo máximo de seguridad (3-5 segundos típico)
+        6. **Material sobre detector**: Eliminar ropa con metales, cables, etc.
+        """)
+    
+    # ============================================
+    # SECTION 5: Optimización de Calidad de Imagen
+    # ============================================
+    st.markdown("---")
+    st.subheader("📈 Optimización de Calidad: SNR y CNR")
+    
+    st.markdown("""
+    La calidad de una imagen radiográfica digital se evalúa principalmente mediante:
+    
+    - **SNR (Signal-to-Noise Ratio)**: Relación entre señal útil y ruido estadístico
+    - **CNR (Contrast-to-Noise Ratio)**: Capacidad de distinguir estructuras diferentes
+    - **Resolución espacial**: Capacidad de ver detalles finos
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 📊 Parámetros de Simulación")
+        kvp_snr = st.slider("kVp", 40, 150, 75, 5, key="kvp_snr")
+        mas_snr = st.slider("mAs", 1, 100, 20, 1, key="mas_snr")
+        thickness = st.slider("Grosor del paciente (cm)", 5, 40, 20, 1, key="thickness_snr")
+        
+        # Calculate SNR and CNR
+        snr, cnr = calculate_snr_cnr(kvp_snr, mas_snr, thickness)
+        
+    with col2:
+        st.markdown("#### 📈 Métricas de Calidad")
+        
+        # SNR metric
+        snr_color = "normal"
+        if snr < 20:
+            snr_color = "off"
+            snr_quality = "⚠️ Bajo - Imagen ruidosa"
+        elif snr < 40:
+            snr_color = "normal"
+            snr_quality = "✅ Aceptable"
+        else:
+            snr_quality = "✅ Excelente"
+        
+        st.metric("SNR (Relación Señal-Ruido)", f"{snr:.1f}", help="Mayor es mejor. >30 es óptimo")
+        st.caption(snr_quality)
+        
+        # CNR metric
+        if cnr < 5:
+            cnr_quality = "⚠️ Bajo contraste"
+        elif cnr < 10:
+            cnr_quality = "✅ Contraste adecuado"
+        else:
+            cnr_quality = "✅ Alto contraste"
+        
+        st.metric("CNR (Contraste-Ruido)", f"{cnr:.1f}", help="Mayor es mejor. >8 es óptimo")
+        st.caption(cnr_quality)
+        
+        # Dose estimation
+        dose_snr = calculate_entrance_dose(kvp_snr, mas_snr)
+        st.metric("Dosis estimada", f"{dose_snr:.2f} mGy")
+    
+    # Interactive plot: SNR vs mAs
+    st.markdown("#### 📊 Efecto de los Parámetros en SNR/CNR")
+    
+    tab_snr1, tab_snr2 = st.tabs(["SNR vs mAs", "CNR vs kVp"])
+    
+    with tab_snr1:
+        # SNR increases with sqrt(mAs)
+        mas_range = np.linspace(1, 100, 50)
+        snr_range = [calculate_snr_cnr(kvp_snr, m, thickness)[0] for m in mas_range]
+        dose_range = [calculate_entrance_dose(kvp_snr, m) for m in mas_range]
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        
+        # SNR vs mAs
+        ax1.plot(mas_range, snr_range, 'b-', linewidth=2, label='SNR')
+        ax1.axhline(30, color='green', linestyle='--', alpha=0.7, label='Objetivo (SNR=30)')
+        ax1.axvline(mas_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({mas_snr} mAs)')
+        ax1.scatter([mas_snr], [snr], s=200, c='red', zorder=5, edgecolors='white', linewidths=2)
+        ax1.set_xlabel('mAs', fontsize=11)
+        ax1.set_ylabel('SNR', fontsize=11)
+        ax1.set_title('SNR vs mAs (√mAs)', fontsize=12, fontweight='bold')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        # Dose vs mAs (linear)
+        ax2.plot(mas_range, dose_range, 'r-', linewidth=2, label='Dosis')
+        ax2.axvline(mas_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({mas_snr} mAs)')
+        ax2.scatter([mas_snr], [dose_snr], s=200, c='red', zorder=5, edgecolors='white', linewidths=2)
+        ax2.set_xlabel('mAs', fontsize=11)
+        ax2.set_ylabel('Dosis (mGy)', fontsize=11)
+        ax2.set_title('Dosis vs mAs (Lineal)', fontsize=12, fontweight='bold')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+        
+        st.info("""
+        💡 **Interpretación**:
+        - SNR aumenta con √mAs → **duplicar mAs mejora SNR en 41%**
+        - Dosis aumenta linealmente con mAs → **duplicar mAs duplica la dosis**
+        - Compromiso: Buscar mínimo mAs que dé SNR aceptable (>30)
+        """)
+    
+    with tab_snr2:
+        # CNR decreases with kVp (less contrast)
+        kvp_range = np.linspace(50, 130, 50)
+        cnr_range = [calculate_snr_cnr(k, mas_snr, thickness)[1] for k in kvp_range]
+        contrast_range = [calculate_contrast_index(k) for k in kvp_range]
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        
+        # CNR vs kVp
+        ax1.plot(kvp_range, cnr_range, 'g-', linewidth=2, label='CNR')
+        ax1.axhline(8, color='green', linestyle='--', alpha=0.7, label='Objetivo (CNR=8)')
+        ax1.axvline(kvp_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({kvp_snr} kVp)')
+        ax1.scatter([kvp_snr], [cnr], s=200, c='red', zorder=5, edgecolors='white', linewidths=2)
+        ax1.set_xlabel('kVp', fontsize=11)
+        ax1.set_ylabel('CNR', fontsize=11)
+        ax1.set_title('CNR vs kVp', fontsize=12, fontweight='bold')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        # Contrast Index vs kVp
+        ax2.plot(kvp_range, contrast_range, 'orange', linewidth=2, label='Índice de Contraste')
+        ax2.axvline(kvp_snr, color='red', linestyle='--', alpha=0.7, label=f'Actual ({kvp_snr} kVp)')
+        current_contrast = calculate_contrast_index(kvp_snr)
+        ax2.scatter([kvp_snr], [current_contrast], s=200, c='red', zorder=5, 
+                   edgecolors='white', linewidths=2)
+        ax2.set_xlabel('kVp', fontsize=11)
+        ax2.set_ylabel('Índice de Contraste', fontsize=11)
+        ax2.set_title('Contraste vs kVp', fontsize=12, fontweight='bold')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+        
+        st.warning("""
+        ⚠️ **Interpretación**:
+        - Mayor kVp → **menor contraste** (más penetración, menos absorción diferencial)
+        - Menor kVp → **mayor contraste** pero mayor dosis y menos penetración
+        - **Regla del 15%**: Subir kVp 15% permite bajar mAs a la mitad (reducir dosis 30%)
+        - Compromiso: Elegir kVp que dé contraste adecuado con mínima dosis
+        """)
+    
+    # ============================================
+    # SECTION 6: Casos Prácticos
+    # ============================================
+    st.markdown("---")
+    st.subheader("🎓 Casos Prácticos y Ejercicios")
+    
+    caso_tabs = st.tabs(["Caso 1: Tórax", "Caso 2: Lumbar", "Caso 3: Pediátrico", "Caso 4: Obeso"])
+    
+    with caso_tabs[0]:
+        st.markdown("""
+        ### 📋 Caso Clínico 1: Radiografía de Tórax PA
+        
+        **Escenario**:
+        Paciente adulto, 70 kg, complexión normal, sin patología respiratoria conocida.
+        Tu equipo tiene:
+        - AEC disponible (3 cámaras)
+        - Rejilla 12:1 en el Bucky
+        - DFI estándar: 180 cm
+        
+        **Técnica habitual**: 125 kVp, AEC, cámaras laterales
+        
+        **Problema**: El paciente tiene marcapasos metálico en región superior izquierda.
+        """)
+        
+        st.markdown("#### ❓ Preguntas:")
+        
+        q1 = st.radio(
+            "1. ¿Qué cámaras AEC deberías usar?",
+            ["Izquierda + Central", "Derecha + Central", "Solo Derecha", "Las 3 cámaras"],
+            key="q1_caso1"
+        )
+        
+        if q1:
+            if q1 == "Solo Derecha":
+                st.success("✅ **Correcto**: Usa solo la cámara derecha para evitar que el marcapasos cause subexposición.")
+            elif q1 == "Derecha + Central":
+                st.warning("⚠️ Parcialmente correcto, pero el mediastino (central) es muy denso para tórax PA.")
+            else:
+                st.error("❌ Incorrecto: El marcapasos en la izquierda causaría lectura incorrecta.")
+        
+        q2 = st.radio(
+            "2. ¿Necesitas ajustar el kVp?",
+            ["No, 125 kVp es correcto", "Sí, reducir a 110 kVp", "Sí, aumentar a 140 kVp"],
+            key="q2_caso1"
+        )
+        
+        if q2:
+            if q2 == "No, 125 kVp es correcto":
+                st.success("✅ **Correcto**: 120-125 kVp es el estándar para tórax PA (bajo contraste necesario).")
+            else:
+                st.error("❌ El kVp estándar para tórax es adecuado.")
+        
+        with st.expander("📖 Ver Explicación Completa"):
+            st.markdown("""
+            **Análisis del caso**:
+            
+            1. **Selección de cámaras**: 
+               - El marcapasos es muy denso (metal) y bloqueará muchos fotones
+               - Si la cámara izquierda está activa, recibirá menos radiación de la esperada
+               - El AEC pensará que necesita más exposición → **sobreexposición**
+               - Solución: **Desactivar cámara izquierda**, usar solo la derecha
+            
+            2. **kVp para tórax**:
+               - Tórax requiere **alto kVp (120-125 kVp)** para:
+                 - Penetrar estructuras mediastínicas densas (corazón, vasos)
+                 - Conseguir **bajo contraste** (escala de grises larga)
+                 - Visualizar tanto parénquima pulmonar como mediastino
+                 - Reducir dosis al paciente (más eficiente)
+               - NO reducir kVp: aumentaría contraste excesivo y dosis
+            
+            3. **DFI 180 cm**:
+               - Reduce magnificación cardiaca (importante para valorar índice cardiotorácico)
+               - Mejora nitidez (menor penumbra geométrica)
+            
+            4. **Precauciones adicionales**:
+               - Marcar la presencia del marcapasos en la solicitud
+               - Informar al radiólogo de su ubicación
+               - Evitar colimación excesiva que deje cámaras fuera del campo
+            """)
+    
+    with caso_tabs[1]:
+        st.markdown("""
+        ### 📋 Caso Clínico 2: Columna Lumbar Lateral
+        
+        **Escenario**:
+        Paciente varón, 95 kg, IMC 32 (obesidad grado I), dolor lumbar crónico.
+        
+        **Técnica estándar**: 90 kVp, 80 mAs, rejilla 10:1, DFI 100 cm
+        
+        **Primera exposición**: Imagen muy subexpuesta (clara), técnica insuficiente.
+        """)
+        
+        st.markdown("#### ❓ Preguntas:")
+        
+        q1_c2 = st.radio(
+            "1. ¿Qué modificación harías primero?",
+            ["Aumentar mAs a 160 mAs (×2)", 
+             "Aumentar kVp a 104 kVp (+15%)", 
+             "Ambas: +15% kVp y +50% mAs",
+             "Cambiar a rejilla 6:1"],
+            key="q1_caso2"
+        )
+        
+        if q1_c2:
+            if q1_c2 == "Aumentar kVp a 104 kVp (+15%)":
+                st.success("✅ **Correcto**: Aplicar regla del 15% es más eficiente. Aumenta penetración y permite reducir mAs.")
+            elif q1_c2 == "Ambas: +15% kVp y +50% mAs":
+                st.warning("⚠️ Podría funcionar, pero aumenta dosis innecesariamente. Prueba primero solo kVp.")
+            elif q1_c2 == "Aumentar mAs a 160 mAs (×2)":
+                st.error("❌ Funcionaría pero DUPLICA la dosis. Mejor aumentar kVp primero (regla 15%).")
+            else:
+                st.error("❌ Cambiar rejilla es complejo. Ajusta primero kVp/mAs.")
+        
+        q2_c2 = st.radio(
+            "2. Si aumentas kVp de 90 a 104 kVp (+15%), ¿cuánto mAs necesitas?",
+            ["40 mAs (la mitad)", "80 mAs (igual)", "120 mAs (+50%)"],
+            key="q2_caso2"
+        )
+        
+        if q2_c2:
+            if q2_c2 == "40 mAs (la mitad)":
+                st.success("✅ **Correcto**: Regla del 15% → +15% kVp = duplica exposición → mAs a la mitad.")
+            else:
+                st.error("❌ Revisa la regla del 15%: +15% kVp duplica la exposición del receptor.")
+        
+        with st.expander("📖 Ver Solución Completa"):
+            st.markdown("""
+            **Análisis del caso**:
+            
+            **Problema**: Paciente obeso → mayor atenuación → técnica estándar insuficiente
+            
+            **Solución paso a paso**:
+            
+            1. **Primera opción (RECOMENDADA)**: Aumentar kVp
+               - De 90 kVp → 104 kVp (+15%)
+               - Permite reducir mAs de 80 → 40 mAs
+               - Mayor penetración del haz
+               - **Dosis neta**: Reducción ~30%
+               - Contraste ligeramente menor (aceptable en lumbar)
+            
+            2. **Segunda opción**: Aumentar solo mAs
+               - De 80 → 160 mAs (×2)
+               - Mantener 90 kVp
+               - Mayor contraste
+               - **Dosis**: Duplicada ⚠️
+               - Mayor carga térmica del tubo
+            
+            3. **Opción óptima para obesos**:
+               - kVp: 90 → 104 kVp (+15%)
+               - mAs: Ajustar por morfología (~100 mAs con factor 1.5×)
+               - Resultado: Buena penetración + dosis controlada
+            
+            **Cálculos**:
+            ```
+            Técnica estándar: 90 kVp, 80 mAs
+            Factor obesidad: 1.5× (paciente 95kg, obeso)
+            
+            Opción A (solo mAs):
+            - 90 kVp, 120 mAs (80 × 1.5)
+            - Dosis: +50%
+            
+            Opción B (Regla 15%):
+            - 104 kVp (+15%), 60 mAs (40 base × 1.5 morfología)
+            - Dosis: +12% respecto estándar
+            
+            Opción B es claramente superior ✅
+            ```
+            
+            **Consideraciones adicionales**:
+            - Verificar límites térmicos del tubo
+            - Lumbar lateral es proyección muy exigente
+            - En obesos mórbidos, considerar TC si disponible
+            - Flexión de rodillas reduce grosor del paciente
+            """)
+    
+    with caso_tabs[2]:
+        st.markdown("""
+        ### 📋 Caso Clínico 3: Radiografía de Abdomen Pediátrico
+        
+        **Escenario**:
+        Niño de 4 años, 18 kg, sospecha de obstrucción intestinal.
+        
+        **Técnica adulto**: 75 kVp, 25 mAs, rejilla 10:1
+        
+        **Pregunta**: ¿Cómo adaptas la técnica?
+        """)
+        
+        st.markdown("#### ❓ Preguntas:")
+        
+        q1_c3 = st.radio(
+            "1. Ajuste de kVp:",
+            ["Mantener 75 kVp", "Reducir a 65-70 kVp", "Aumentar a 85 kVp"],
+            key="q1_caso3"
+        )
+        
+        if q1_c3:
+            if q1_c3 == "Reducir a 65-70 kVp":
+                st.success("✅ **Correcto**: Menor grosor del paciente requiere menos penetración.")
+            else:
+                st.error("❌ Niños requieren kVp menor por su menor grosor corporal.")
+        
+        q2_c3 = st.radio(
+            "2. Ajuste de mAs:",
+            ["6 mAs (factor 0.25×)", "12 mAs (factor 0.5×)", "25 mAs (igual)", "50 mAs (factor 2×)"],
+            key="q2_caso3"
+        )
+        
+        if q2_c3:
+            if q2_c3 == "6 mAs (factor 0.25×)":
+                st.success("✅ **Correcto**: Pediátrico <5 años → factor 0.25× según tabla de morfología.")
+            else:
+                st.error("❌ Pediátricos requieren reducción drástica: factor 0.25× para <5 años.")
+        
+        q3_c3 = st.radio(
+            "3. ¿Usar rejilla antidifusión?",
+            ["Sí, rejilla 10:1", "Sí, pero reducir a 6:1", "NO usar rejilla"],
+            key="q3_caso3"
+        )
+        
+        if q3_c3:
+            if q3_c3 == "NO usar rejilla":
+                st.success("✅ **Correcto**: Grosor <10-12 cm → sin rejilla (menos dosis, suficiente calidad).")
+            else:
+                st.error("❌ Pacientes pediátricos delgados NO requieren rejilla. Aumentaría dosis innecesariamente.")
+        
+        with st.expander("📖 Ver Protocolo Pediátrico Completo"):
+            st.markdown("""
+            **Protocolo optimizado para niño 4 años (18 kg)**:
+            
+            ```
+            ⚡ kVp: 65-70 kVp (reducción de 5-10 kVp)
+            🔋 mAs: 6 mAs (25 × 0.25)
+            🔲 Rejilla: NO (grosor <12 cm)
+            📏 DFI: 100 cm (estándar)
+            ⏱️ Tiempo: Mínimo posible (movimiento)
+            ```
+            
+            **Justificación**:
+            
+            1. **ALARA es crítico en pediatría**:
+               - Tejidos en desarrollo = mayor radiosensibilidad
+               - Mayor expectativa de vida = más tiempo para efectos tardíos
+               - Objetivo: **Dosis mínima diagnóstica**
+            
+            2. **Sin rejilla**:
+               - Grosor abdominal ~10-12 cm
+               - Poca radiación dispersa generada
+               - Ahorro de factor Bucky (5×) = **80% menos dosis**
+            
+            3. **Menor kVp**:
+               - Menor penetración necesaria
+               - Mantiene contraste adecuado
+               - Reduce dosis de salida
+            
+            4. **Mínimo mAs**:
+               - Factor 0.25× para <5 años
+               - Suficiente SNR en digital moderno
+               - Reduce tiempo de exposición (menor movimiento)
+            
+            **Precauciones adicionales**:
+            
+            - 🎯 **Colimación estricta**: Solo área de interés
+            - 🛡️ **Protección gonadal**: Siempre que no interfiera con diagnóstico
+            - 👶 **Inmovilización**: Sábanas, dispositivos, acompañante si necesario
+            - 📋 **Preparación**: Explicar al niño (si edad apropiada) y padres
+            - ⚡ **Técnica rápida**: Minimizar tiempo en sala
+            - 🔄 **Evitar repeticiones**: Verificar posicionamiento antes de disparar
+            
+            **Comparación de dosis**:
+            
+            | Técnica | kVp | mAs | Rejilla | Dosis estimada |
+            |---------|-----|-----|---------|----------------|
+            | Adulto estándar | 75 | 25 | 10:1 | 1.0 mGy (ref) |
+            | Pediátrico SUB-ÓPTIMO | 75 | 12 | 10:1 | 0.48 mGy |
+            | **Pediátrico ÓPTIMO** | **70** | **6** | **NO** | **0.09 mGy** ✅ |
+            
+            **Reducción: >90% de dosis** 🎉
+            """)
+    
+    with caso_tabs[3]:
+        st.markdown("""
+        ### 📋 Caso Clínico 4: Paciente Obeso Mórbido
+        
+        **Escenario**:
+        Mujer de 45 años, 145 kg, IMC 48 (obesidad mórbida), dolor abdominal agudo.
+        Radiografía de abdomen AP en urgencias.
+        
+        **Técnica estándar**: 75 kVp, 25 mAs, rejilla 10:1
+        
+        **Primer intento con AEC**: Tiempo máximo alcanzado (6 segundos), imagen subexpuesta.
+        """)
+        
+        st.markdown("#### ❓ Preguntas:")
+        
+        q1_c4 = st.radio(
+            "1. ¿Qué falló en el primer intento?",
+            ["mAs insuficiente", 
+             "kVp insuficiente (baja penetración)", 
+             "Rejilla inadecuada",
+             "AEC mal configurado"],
+            key="q1_caso4"
+        )
+        
+        if q1_c4:
+            if q1_c4 == "kVp insuficiente (baja penetración)":
+                st.success("✅ **Correcto**: 75 kVp es insuficiente para penetrar ~35-40 cm de tejido. El AEC no pudo compensar.")
+            else:
+                st.warning("⚠️ El problema principal es penetración. Con bajo kVp, ni el AEC puede compensar.")
+        
+        q2_c4 = st.radio(
+            "2. Técnica optimizada:",
+            ["75 kVp, 100 mAs (×4)", 
+             "90 kVp (+20%), 50 mAs (×2)", 
+             "105 kVp (+40%), 50 mAs (×2)",
+             "Técnica manual imposible, usar TC"],
+            key="q2_caso4"
+        )
+        
+        if q2_c4:
+            if q2_c4 == "90 kVp (+20%), 50 mAs (×2)":
+                st.success("✅ **Correcto**: Equilibrio entre penetración y dosis. Aumentar kVp es prioritario en obesos.")
+            elif q2_c4 == "105 kVp (+40%), 50 mAs (×2)":
+                st.warning("⚠️ Funcionaría, pero kVp muy alto puede generar mucha dispersión. 90-95 kVp suele ser suficiente.")
+            elif q2_c4 == "75 kVp, 100 mAs (×4)":
+                st.error("❌ Dosis excesiva sin resolver el problema de penetración. Siempre aumentar kVp primero.")
+            else:
+                st.info("💡 TC puede ser mejor opción diagnóstica, pero RX optimizada es posible.")
+        
+        q3_c4 = st.radio(
+            "3. ¿Qué más puedes hacer?",
+            ["Comprimir el abdomen con banda", 
+             "Usar técnica de dos disparos", 
+             "Cambiar a proyección lateral",
+             "Aumentar DFI a 150 cm"],
+            key="q3_caso4"
+        )
+        
+        if q3_c4:
+            if q3_c4 == "Comprimir el abdomen con banda":
+                st.success("✅ **Correcto**: La compresión reduce grosor efectivo (pero con precaución en abdomen agudo).")
+            elif q3_c4 == "Aumentar DFI a 150 cm":
+                st.warning("⚠️ Reduce magnificación pero requiere mucho más mAs (ley cuadrado inverso). Contraproducente.")
+            else:
+                st.error("❌ No son estrategias estándar para este problema.")
+        
+        with st.expander("📖 Ver Estrategia Completa para Pacientes Obesos"):
+            st.markdown("""
+            **Análisis del caso**:
+            
+            **Problema principal**: Obesidad mórbida (IMC 48) → grosor abdominal ~35-40 cm
+            
+            **Estrategia de optimización**:
+            
+            ### 1️⃣ **Aumentar kVp (PRIORIDAD)**
+            
+            ```
+            Técnica estándar:  75 kVp, 25 mAs
+            Obesidad factor 2× (mAs): 75 kVp, 50 mAs
+            
+            Problema: 75 kVp no penetra 35+ cm
+            ❌ AEC alcanza tiempo máximo (6s)
+            ❌ Imagen subexpuesta incluso con mAs alto
+            
+            Solución: AUMENTAR kVp primero
+            ✅ Técnica optimizada: 90-95 kVp, 50 mAs
+            ```
+            
+            **Justificación kVp alto**:
+            - Mayor penetración del haz
+            - Reduce absorción fotoelectrica (proporcional a Z³/E³)
+            - Permite al AEC funcionar en rango normal
+            - **Dosis efectiva menor** que forzar mAs alto con kVp bajo
+            
+            ### 2️⃣ **Ajuste de mAs**
+            
+            Factor obesidad mórbida: **2.0-2.5×**
+            ```
+            mAs base: 25 mAs
+            mAs obeso mórbido: 50-60 mAs
+            ```
+            
+            Con regla del 15%:
+            ```
+            Si 75 kVp, 50 mAs → subexpuesta
+            Entonces 90 kVp (+20% = 1.15²), 50 mAs → CORRECTA ✅
+            
+            Justificación:
+            75 → 86 kVp (+15%) = duplica exposición
+            86 → 90 kVp (+5% adicional) = +10% más
+            Total: ~2.2× exposición manteniendo 50 mAs
+            ```
+            
+            ### 3️⃣ **Optimizaciones adicionales**
+            
+            **A. Compresión abdominal** (si es seguro):
+            - Banda de compresión reduce 3-5 cm de grosor
+            - ⚠️ **Precaución**: NO en abdomen agudo con sospecha de perforación
+            - ⚠️ Requiere consentimiento y colaboración del paciente
+            
+            **B. Rejilla adecuada**:
+            - Obesidad genera MUCHA radiación dispersa
+            - Usar rejilla 12:1 o 16:1 (si disponible)
+            - Mejora contraste (crítico con alto kVp)
+            
+            **C. Configuración AEC**:
+            - Activar las 3 cámaras (abdomen es homogéneo)
+            - Aumentar tiempo máximo de backup a 8-10 segundos (si equipo lo permite)
+            - Verificar que cámaras están dentro del campo
+            
+            **D. Posicionamiento**:
+            - Centrado perfecto (crítico con AEC)
+            - Considerar decúbito lateral (reduce grosor AP)
+            - Elevar brazos (reducir atenuación adicional)
+            
+            ### 4️⃣ **Técnica final propuesta**
+            
+            ```
+            📊 TÉCNICA OPTIMIZADA:
+            
+            ⚡ kVp: 90-95 kVp (+20-27%)
+            🔋 mAs: 50-60 mAs (×2-2.5)
+            🔲 Rejilla: 12:1 o 16:1
+            📏 DFI: 100 cm (estándar)
+            🤖 AEC: 3 cámaras, backup 8-10s
+            🎯 Colimación: Estricta
+            
+            Dosis estimada: 3.5-4.0 mGy
+            (vs 8-10 mGy con técnica no optimizada)
+            ```
+            
+            ### 5️⃣ **Comparación de estrategias**
+            
+            | Estrategia | kVp | mAs | Penetración | Dosis | Viabilidad |
+            |------------|-----|-----|-------------|-------|------------|
+            | Estándar | 75 | 25 | ❌ Insuficiente | 1.0× | ❌ Falla |
+            | Solo ↑mAs | 75 | 100 | ❌ Insuficiente | 4.0× | ❌ Falla + alta dosis |
+            | Solo ↑kVp | 90 | 25 | ✅ Buena | 0.8× | ⚠️ Puede ser corto |
+            | **ÓPTIMA** | **90** | **50** | ✅ **Excelente** | **2.0×** | ✅ **Funciona** |
+            
+            ### 6️⃣ **Consideraciones especiales**
+            
+            **Límites del equipo**:
+            - Verificar capacidad térmica del tubo
+            - mA máximo disponible (puede limitar tiempo mínimo)
+            - Generador de alta potencia preferible (>50 kW)
+            
+            **Alternativas diagnósticas**:
+            - **Ecografía**: Primera línea en muchos casos abdominales
+            - **TC**: Mejor calidad diagnóstica, dosis similar o menor
+            - **RM**: Sin radiación, pero disponibilidad y coste
+            
+            **Comunicación**:
+            - Informar al radiólogo de la dificultad técnica
+            - Documentar parámetros utilizados
+            - Si imagen es subóptima, explicar limitaciones técnicas
+            - Considerar protocolo alternativo con el clínico
+            
+            ### 7️⃣ **Principios ALARA aplicados**
+            
+            ✅ **Justificación**: ¿Es realmente necesaria la RX?
+            - En abdomen agudo: Valorar eco primero
+            - Si RX imprescindible: Optimizar técnica
+            
+            ✅ **Optimización**: Técnica que minimiza dosis para diagnóstico adecuado
+            - Preferir ↑kVp sobre ↑mAs
+            - Colimación estricta
+            - Evitar repeticiones (verificar antes de disparar)
+            
+            ✅ **Limitación**: Protección y blindaje
+            - Personal: Salir de sala
+            - Paciente: Protección gonadal si no interfiere
+            
+            **Resultado esperado**:
+            Con técnica optimizada (90 kVp, 50 mAs):
+            - ✅ Penetración adecuada
+            - ✅ Densidad diagnóstica
+            - ✅ Dosis controlada (~50% menos que técnica forzada con bajo kVp)
+            - ✅ Contraste aceptable (con rejilla apropiada)
+            """)
+    
+    # ============================================
+    # SECTION 7: Resumen y Recursos
+    # ============================================
+    st.markdown("---")
+    st.subheader("📚 Resumen de Conceptos Clave")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### ⚡ Reglas Fundamentales
+        
+        **Regla del 15%**
+        - +15% kVp = ×2 exposición
+        - Permite ÷2 mAs
+        - Reduce dosis ~30%
+        
+        **Ley Cuadrado Inverso**
+        - I₁/I₂ = (d₂/d₁)²
+        - Duplicar distancia = ÷4 intensidad
+        - Ajustar mAs proporcionalmente
+        
+        **Factor de Rejilla**
+        - Sin rejilla: ×1
+        - 8:1 → ×4
+        - 10:1 → ×5
+        - 12:1 → ×5
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 🎯 Optimización
+        
+        **Prioridades**:
+        1. Calidad diagnóstica
+        2. Mínima dosis (ALARA)
+        3. Eficiencia técnica
+        
+        **Estrategias**:
+        - Pacientes delgados: ↓mAs, kVp estándar
+        - Pacientes obesos: ↑kVp primero
+        - Pediátricos: ↓↓mAs, sin rejilla si <12cm
+        - Uso de AEC siempre que sea posible
+        """)
+    
+    with col3:
+        st.markdown("""
+        ### 🔧 Resolución de Problemas
+        
+        **Imagen muy clara**:
+        - ↑kVp (+15%) o ↑mAs (×2)
+        - Verificar morfología paciente
+        
+        **Imagen muy oscura**:
+        - ↓mAs o ↓kVp
+        - Verificar AEC
+        
+        **Bajo contraste**:
+        - ↓kVp (-10-15%)
+        - Verificar rejilla
+        
+        **Imagen ruidosa**:
+        - ↑mAs (mejora SNR)
+        """)
+    
+    # Final tips box
+    st.info("""
+    💡 **Consejos del Técnico Experto**:
+    
+    1. **Siempre piensa en kVp primero**: Es el parámetro más influyente en calidad y dosis
+    2. **AEC es tu amigo**: Úsalo siempre que sea apropiado, pero entiende cómo funciona
+    3. **Morfología importa**: No hay "técnica única" - adapta siempre al paciente
+    4. **ALARA constante**: Cada mAs cuenta - usa el mínimo diagnósticamente aceptable
+    5. **Verifica antes de disparar**: Posición, centrado, colimación, protección
+    6. **Documenta técnicas**: Especialmente en casos difíciles, aprende de la experiencia
+    7. **Pregunta si dudas**: Mejor consultar que repetir (dosis adicional innecesaria)
+    """)
+    
+    # Download summary
+    with st.expander("📥 Descargar Resumen de Parámetros Técnicos"):
+        st.markdown("""
+        ### Tabla de Referencia Rápida
+        
+        #### Conversiones Básicas
+        
+        | Cambio | Factor | Efecto en Exposición |
+        |--------|--------|----------------------|
+        | kVp +15% | 1.15 | ×2 exposición |
+        | kVp -15% | 0.87 | ÷2 exposición |
+        | mAs ×2 | 2.0 | ×2 exposición |
+        | mAs ÷2 | 0.5 | ÷2 exposición |
+        | DFI ×2 | 2.0 | ÷4 intensidad → ×4 mAs |
+        | DFI ÷2 | 0.5 | ×4 intensidad → ÷4 mAs |
+            
+        #### Factores de Morfología
+        
+        | Tipo de Paciente | Factor mAs | kVp Ajuste |
+        |------------------|------------|------------|
+        | Pediátrico < 5 años | 0.25× | -10 kVp |
+        | Niño 5-12 años | 0.5× | -5 kVp |
+        | Adolescente | 0.75× | Estándar |
+        | Adulto asténico | 0.8× | Estándar |
+        | Adulto normal | 1.0× | Estándar |
+        | Adulto hiperesténico | 1.2× | +5 kVp |
+        | Adulto obeso | 1.5× | +10-15 kVp |
+        | Obeso mórbido | 2.0-2.5× | +20-30 kVp |
+        
+        #### Factores de Rejilla
+        
+        | Rejilla | Factor Bucky | Uso Típico |
+        |---------|--------------|------------|
+        | Sin rejilla | 1 | <10 cm grosor |
+        | 5:1 | 2 | Portátiles |
+        | 6:1 | 3 | Portátiles/General |
+        | 8:1 | 4 | General/Mesa |
+        | 10:1 | 5 | General/Bucky |
+        | 12:1 | 5 | Bucky/Alta calidad |
+        | 16:1 | 6 | Alta energía |
+        
+        #### Rangos de kVp por Región
+        
+        | Región Anatómica | kVp Típico | Contraste |
+        |------------------|------------|-----------|
+        | Extremidades | 50-65 | Alto |
+        | Cráneo | 70-80 | Medio-Alto |
+        | Columna cervical | 70-75 | Medio |
+        | Columna lumbar | 80-95 | Medio |
+        | Tórax PA | 120-125 | Bajo |
+        | Abdomen | 75-85 | Medio |
+        | Pelvis | 75-80 | Medio |
+        
+        #### Distancias Estándar
+        
+        | Proyección | DFI Estándar | Motivo |
+        |------------|--------------|--------|
+        | Tórax PA/PA | 180 cm | Reduce magnificación cardiaca |
+        | General | 100 cm | Estándar universal |
+        | Portátiles | 100-120 cm | Limitación práctica |
+        | Extremidades | 100 cm | Estándar |
+        
+        #### Fórmulas Útiles
+        
+        ```
+        1. Regla del 15%:
+           kVp_nuevo = kVp_inicial × 1.15
+           mAs_nuevo = mAs_inicial ÷ 2
+        
+        2. Ley del Cuadrado Inverso:
+           mAs₂ = mAs₁ × (DFI₂ / DFI₁)²
+        
+        3. Factor de Rejilla:
+           mAs_con_rejilla = mAs_sin_rejilla × Factor_Bucky
+        
+        4. Compensación de Morfología:
+           mAs_ajustado = mAs_base × Factor_morfología
+        
+        5. SNR (aproximado):
+           SNR ∝ √(mAs)
+           Duplicar mAs → SNR aumenta 41%
+        
+        6. Dosis de Entrada (aproximada):
+           ESD ∝ kVp² × mAs / DFI²
+        ```
+        
+        #### Checklist Pre-Exposición
+        
+        ✅ **Identificación**: Paciente correcto, solicitud verificada
+        ✅ **Posicionamiento**: Centrado, alineación, inmovilización
+        ✅ **Protección**: Blindaje gonadal, colimación estricta
+        ✅ **Técnica**: kVp/mAs apropiados para morfología
+        ✅ **AEC**: Cámaras correctas si aplica
+        ✅ **Rejilla**: Apropiada para región/grosor
+        ✅ **DFI**: Correcta para proyección
+        ✅ **Colimación**: Solo área de interés
+        ✅ **Respiración**: Instrucciones claras al paciente
+        ✅ **Personal**: Fuera de sala o protegido
+        
+        ---
+        
+        **Documento generado por el Simulador de Radiología**
+        *Valores orientativos - Consulta siempre protocolos específicos de tu centro*
+        """)
+        
+        # Create downloadable content
+        summary_text = """
+        RESUMEN DE PARÁMETROS TÉCNICOS EN RADIOLOGÍA
+        =============================================
+        
+        REGLAS FUNDAMENTALES:
+        - Regla del 15%: +15% kVp = ×2 exposición, permite ÷2 mAs
+        - Ley Cuadrado Inverso: Intensidad ∝ 1/distancia²
+        - Factor Rejilla: Multiplicar mAs según ratio de rejilla
+        
+        PRIORIDADES EN OPTIMIZACIÓN:
+        1. Calidad diagnóstica adecuada
+        2. Mínima dosis al paciente (ALARA)
+        3. Eficiencia del flujo de trabajo
+        
+        ESTRATEGIAS POR TIPO DE PACIENTE:
+        - Pediátrico: Reducir drásticamente (0.25-0.5×), sin rejilla si <12cm
+        - Delgado: Reducir mAs (0.8×), kVp estándar
+        - Normal: Técnica de referencia (1.0×)
+        - Obeso: Aumentar kVp primero (+15-20%), luego mAs (1.5-2×)
+        
+        RESOLUCIÓN DE PROBLEMAS:
+        - Imagen clara: ↑kVp o ↑mAs
+        - Imagen oscura: ↓kVp o ↓mAs
+        - Bajo contraste: ↓kVp
+        - Mucho ruido: ↑mAs
+        
+        Generado por Simulador Educativo de Radiología
+        """
+        
+        st.download_button(
+            label="📄 Descargar Resumen en TXT",
+            data=summary_text,
+            file_name="resumen_parametros_tecnicos_radiologia.txt",
+            mime="text/plain"
+        )
 
 # ============================================
 # TAB 5: CALIDAD DE IMAGEN (to be completed)
